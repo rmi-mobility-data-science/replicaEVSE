@@ -1,0 +1,37 @@
+data/
+visualizations/
+
+.DS_Store
+#./DS_Store
+
+#Distribution
+*.egg-info/
+
+#ipynb
+.ipynb_checkpoints/
+/.ipynb_checkpoints/
+*-checkpoint.ipynb
+__pycache__/
+*/__pycache__/
+
+#pickled/feathered files
+*.pkl
+*.ftr
+
+#temp data
+*.csv
+
+#map outputs
+*.html
+*.png
+*.svg
+
+#misc
+*.log
+
+#data
+.parquet
+
+
+#compiled output
+*.pyc
