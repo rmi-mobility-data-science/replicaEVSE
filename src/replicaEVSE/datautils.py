@@ -91,11 +91,7 @@ def save_as_parquet(path, clean=True):
             df = clean_pop_data(load_data(path))
         elif 'trip' in path:
             df = clean_trip_data(load_data(path))
-    if '.parquet' in path:
-        df.to_parquet(path)
-    else:
-        print("requires parquet file extension")
-        # path = path.replace('.csv', '.parquet')
-        # df.to_parquet(path)
+    path = path.replace('.csv', '.parquet')
+    df.to_parquet(path)
     return df
 
