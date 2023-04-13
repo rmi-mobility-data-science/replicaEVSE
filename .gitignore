@@ -38,3 +38,6 @@ __pycache__/
 
 # text
 *.txt
+
+# vscode
+.vscode/
