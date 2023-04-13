@@ -2,9 +2,8 @@
 This module contains functions for loading 
 and processing data."""
 
+# import os
 import dask.dataframe as dd
-import os
-
 
 def load_data(path, **kwargs):
     """Load data from a path.
@@ -34,7 +33,7 @@ def clean_pop_data(pop_df):
         DataFrame: _description_
     """
     pop_df = pop_df[pop_df.person_id != 'person_id']
-    dtype_dict = { 
+    dtype_dict = {
               'age': int,
               'person_id': str,
               'household_id': str,

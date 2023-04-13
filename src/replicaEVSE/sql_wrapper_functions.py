@@ -68,3 +68,20 @@ def convert_to_df(results,columns):
         from_db.append(result)
     df = pd.DataFrame(from_db, columns=columns)
     return(df)
+
+def add_data_from_df(df, table, connection, dtype_list):
+    #connection_replica = create_db_connection("localhost", "root", pw, database)
+    for i in range(0,len(df)):
+        #print(df.iloc[i,].values)
+        data = tuple([x[1](x[0]) for x in zip(df.iloc[i,].values,dtype_list)])
+        #print(dtypes_list[5](df.iloc[i,].values[5]))
+        data = str(data)
+        data = data.replace('0 days ','').replace('1 days ','')
+        #data = data.replace("'NULL'","NULL")
+        # if 'NULL' in data:
+        #     print(data)
+        populate = """
+        INSERT INTO """ + table + """ VALUES
+        """ + data + ';'
+        #print(populate)
+        execute_query(connection, populate)
