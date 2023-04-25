@@ -94,3 +94,20 @@ def save_as_parquet(path, clean=True):
     df.to_parquet(path)
     return df
 
+def create_chunked_lists(chunk_size, person_list):
+    """Creates list of person_id lists of a given chunk_size for parallelizing simulation
+    Parameters
+    ----------
+    chunk_size : int
+        Number of person ids to include in each sub-list
+        The simulation runs each sub-list of people on a single core in series
+    person_list : list
+        Person ids to reorganize into list of lists
+    Returns
+    -------
+    list
+        List of lists of person ids
+    """
+    
+    lists = [person_list[x:x+chunk_size] for x in range(0,len(person_list),chunk_size)]
+    return lists
