@@ -1,7 +1,7 @@
 """Functions for simulating load curves for EV charging."""
 import pandas as pd
 import numpy as np
-import replicaEVSE.sql_wrapper_functions as sql
+import scripts.sql_wrapper_functions as sql
 
 
 def pull_travel_data(
@@ -355,7 +355,6 @@ def simulate_person_load(
             "charges" dataframe in which each row is a charge
             "loads" dataframe in which each row is a time window
     """
-    print(person_ids[-1])
     # Pull the travel and person data
     travel_dfs = pull_travel_data(
         person_ids=person_ids,
