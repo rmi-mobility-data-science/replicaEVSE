@@ -19,7 +19,7 @@ mode = 'PRIVATE_AUTO'
 # number of chunks to break the dataframe into
 # this is used to parallelize the simulation
 # note: data set is ~50 million rows
-number_of_chunks = 10 # 10000 rows in each chunck
+number_of_chunks = 1000 # 10000 rows in each chunck
 
 #Created in the EIA_data_download.ipynb notebook
 existing_load=pd.read_csv(os.path.join(datadir, 'EIA_demand_summary.csv'))
