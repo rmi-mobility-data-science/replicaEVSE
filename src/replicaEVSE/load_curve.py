@@ -2,6 +2,7 @@
 
 import pandas as pd
 import numpy as np
+import replicaEVSE.sql_wrapper_functions as sql
 # import dask.dataframe as dd
 # import dask
 
@@ -9,7 +10,8 @@ import numpy as np
 def calculate_stop_duration(df: pd.DataFrame,
                             columns_list: list = None) -> pd.DataFrame:
     """ Calculate the charging duration of the trips. This is the time when 
-    we would expect to be charging. We include the overnight duration
+    we would expect to be charging. We include the overnight duration. 
+    This is an attempt to vectorize the calculation of the charging duration.
 
     Args:
         df (pd.dataframe): pd dataframe of the trips
@@ -424,6 +426,7 @@ def simulate_person_load(
         # Create a unique ID for each charge
         charge_df['charge_id'] = [x[0]+'_'+x[1]
                                   for x in zip(charge_df.activity_id, charge_df.simulation_id)]
+        charge_df['person_id'] = j
         # Merge charge data with trips data
         trips_temp = trips_temp.merge(charge_df)
         # #Create list of empty lists to fill with load data
@@ -446,6 +449,8 @@ def simulate_person_load(
                                                     weekday, 'D'].values
                 )
                 load['charge_id'] = trips_temp.charge_id.iloc[i]
+                load['simulation_id'] = simulation_id
+                load['person_id'] = trips_temp.person_id.iloc[i]
                 load['load_segment_id'] = [
                     x[0]+'_'+str(x[1]) for x in zip(load.charge_id, load.index)]
                 load_list += [load]
@@ -456,8 +461,16 @@ def simulate_person_load(
     trips_df = pd.concat(trips_list)
     load_df = pd.concat(loads_collection)
     # Return charges and loads dataframes as a dictionary
-    return {'charges': trips_df[['charge_id', 'activity_id', 'simulation_id',
-                                  'charger_power_kW', 'charge_energy_used_kWh',
-                                 'charge_opportunity_remaining_kWh']],
-            'loads': load_df[['load_segment_id', 'charge_id', 'window_start_time', 'window_end_time', 'load_kW']]}
 
+    charges = trips_df[['person_id', 'charge_id', 'activity_id', 'simulation_id',
+                                  'charger_power_kW', 'charge_energy_used_kWh',
+                                 'charge_opportunity_remaining_kWh']]
+    
+    loads = load_df[['person_id', 'load_segment_id', 'charge_id', 'window_start_time', 'window_end_time', 'load_kW']]
+
+    #return {'charges': trips_df[['charge_id', 'activity_id', 'simulation_id',
+    #                              'charger_power_kW', 'charge_energy_used_kWh',
+    #                             'charge_opportunity_remaining_kWh']],
+    #        'loads': load_df[['load_segment_id', 'charge_id', 'window_start_time', 'window_end_time', 'load_kW']]}
+
+    return {'charges': charges, 'loads': loads}
