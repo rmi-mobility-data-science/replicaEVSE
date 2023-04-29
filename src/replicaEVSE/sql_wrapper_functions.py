@@ -1,7 +1,9 @@
+# we arent using sql anymore, maybe I should delete this file
+
 import mysql.connector
 from mysql.connector import Error
 import pandas as pd
-from csv import reader
+# from csv import reader
 
 
 def create_server_connection(host_name, user_name, user_password):
