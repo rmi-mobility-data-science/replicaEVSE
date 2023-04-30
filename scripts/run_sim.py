@@ -115,8 +115,8 @@ print("time to stack:", stack_stop_time - stack_start_time)
 # save the results
 print('---saveing the charges and loads dfs---')
 save_start_time = process_time()
-charges_df.to_parquet(os.path.join(datadir, f'charges_{mode}_{simulation_id}.parquet'))
-loads_df.to_parquet(os.path.join(datadir, f'loads_{mode}_{simulation_id}.parquet'))
+charges_df.to_parquet(os.path.join(datadir, f'charges_{mode}_{simulation_id}.parquet'), overwrite=True)
+loads_df.to_parquet(os.path.join(datadir, f'loads_{mode}_{simulation_id}.parquet'), overwrite=True)
 save_stop_time = process_time()
 print("time to save:", save_stop_time - save_start_time)
 
