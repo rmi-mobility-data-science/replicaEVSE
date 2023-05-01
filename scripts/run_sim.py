@@ -21,17 +21,22 @@ mode = 'PRIVATE_AUTO'
 # note: data set is ~50 million rows
 number_of_chunks = 1000 # 10000 rows in each chunck
 
-#Created in the EIA_data_download.ipynb notebook
-existing_load=pd.read_csv(os.path.join(datadir, 'EIA_demand_summary.csv'))
+
 
 test = False
+
+# use dask?
+use_dask = True
+
+
+#Created in the EIA_data_download.ipynb notebook
+existing_load=pd.read_csv(os.path.join(datadir, 'EIA_demand_summary.csv'))
 
 
 # Start the stopwatch / counter 
 load_start_time = process_time() 
 
-# use dask?
-use_dask = False
+
 if use_dask:
 
     from dask.distributed import Client, LocalCluster
@@ -100,16 +105,28 @@ charge_sims = joblib.Parallel(verbose=10, n_jobs=-1)(
 sim_stop_time = process_time()
 print("time to simulate:", sim_stop_time - sim_start_time)
 
-# restack the dataframes
-# use dask to make use of the parallelization?
-print('---restacking the dataframes---')
-stack_start_time = process_time()
-charges_list = [x['charges'] for x in charge_sims]
-charges_df = pd.concat(charges_list)
-loads_list = [x['loads'] for x in charge_sims]
-loads_df = pd.concat(loads_list)
-stack_stop_time = process_time()
-print("time to stack:", stack_stop_time - stack_start_time)
+if use_dask:
+    # restack the dataframes
+    # use dask to make use of the parallelization?
+    print('---restacking the dataframes---')
+    stack_start_time = process_time()
+    charges_list = [x['charges'] for x in charge_sims]
+    charges_df = dd.concat(charges_list)
+    loads_list = [x['loads'] for x in charge_sims]
+    loads_df = dd.concat(loads_list)
+    stack_stop_time = process_time()
+    print("time to stack:", stack_stop_time - stack_start_time)
+else:
+    # restack the dataframes
+    # use dask to make use of the parallelization?
+    print('---restacking the dataframes---')
+    stack_start_time = process_time()
+    charges_list = [x['charges'] for x in charge_sims]
+    charges_df = pd.concat(charges_list)
+    loads_list = [x['loads'] for x in charge_sims]
+    loads_df = pd.concat(loads_list)
+    stack_stop_time = process_time()
+    print("time to stack:", stack_stop_time - stack_start_time)
 
 
 # save the results
