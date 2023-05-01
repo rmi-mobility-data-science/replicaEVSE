@@ -383,7 +383,7 @@ def simulate_person_load(
     """
 
     # Take subset of trips using private autos as candidates for charging
-    trips_df = df.loc[df['mode'] == 'PRIVATE_AUTO'].copy()
+    # trips_df = df.loc[df['mode'] == 'PRIVATE_AUTO'].copy()
     if len(trips_df) == 0:
         return ({'charges': 'No trips', 'loads': 'No trips'})
     # Create charge_type column from travel_purpose column
