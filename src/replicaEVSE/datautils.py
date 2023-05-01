@@ -2,9 +2,8 @@
 This module contains functions for loading 
 and processing data."""
 
+# import os
 import dask.dataframe as dd
-import os
-
 
 def load_data(path, **kwargs):
     """Load data from a path.
@@ -34,7 +33,7 @@ def clean_pop_data(pop_df):
         DataFrame: _description_
     """
     pop_df = pop_df[pop_df.person_id != 'person_id']
-    dtype_dict = { 
+    dtype_dict = {
               'age': int,
               'person_id': str,
               'household_id': str,
@@ -91,11 +90,24 @@ def save_as_parquet(path, clean=True):
             df = clean_pop_data(load_data(path))
         elif 'trip' in path:
             df = clean_trip_data(load_data(path))
-    if '.parquet' in path:
-        df.to_parquet(path)
-    else:
-        print("requires parquet file extension")
-        # path = path.replace('.csv', '.parquet')
-        # df.to_parquet(path)
+    path = path.replace('.csv', '.parquet')
+    df.to_parquet(path)
     return df
 
+def create_chunked_lists(chunk_size, person_list):
+    """Creates list of person_id lists of a given chunk_size for parallelizing simulation
+    Parameters
+    ----------
+    chunk_size : int
+        Number of person ids to include in each sub-list
+        The simulation runs each sub-list of people on a single core in series
+    person_list : list
+        Person ids to reorganize into list of lists
+    Returns
+    -------
+    list
+        List of lists of person ids
+    """
+    
+    lists = [person_list[x:x+chunk_size] for x in range(0,len(person_list),chunk_size)]
+    return lists
