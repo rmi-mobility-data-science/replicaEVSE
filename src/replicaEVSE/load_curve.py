@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 # import replicaEVSE.sql_wrapper_functions as sql
 # import dask.dataframe as dd
-# import dask
+import dask
 
 
 def calculate_stop_duration(df: pd.DataFrame,
@@ -349,9 +349,8 @@ def determine_energy_consumption(person_df, trips_df):
     dummy = trips_df
     return 0.3
 
-
 def simulate_person_load(
-    df,
+    trips_df,
     existing_load,
     simulation_id,
     managed
@@ -474,3 +473,15 @@ def simulate_person_load(
     #        'loads': load_df[['load_segment_id', 'charge_id', 'window_start_time', 'window_end_time', 'load_kW']]}
 
     return {'charges': charges, 'loads': loads}
+
+@dask.delayed
+def simulate_person_load_dask(
+    trips_df,
+    existing_load,
+    simulation_id,
+    managed
+):
+    return simulate_person_load(trips_df,
+        existing_load,
+        simulation_id,
+        managed)

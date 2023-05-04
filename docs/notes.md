@@ -8,6 +8,7 @@
 * other_len = 49.674863
 * pop_len = 14.889896
 * trips_into_wa_len = 51.727268
+* private auto trips into wa = 27.12446
 * merged_len = 51.727268 
 * unique persons who travelled to wa = 8.538399
 
