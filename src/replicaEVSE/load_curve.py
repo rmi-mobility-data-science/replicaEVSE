@@ -111,7 +111,7 @@ def determine_charger_availability(
 
 def determine_charger_availability_tnc(level_2_frac: float = 0.5) -> dict:
     """ This will determine what kind on charger is available for the TNC trips. The replica data 
-    does't track vehicles or drivers yet so this is just all the passengers. We are going to assume 
+    doesn't track vehicles or drivers yet so this is just all the passengers. We are going to assume 
     the tnc drivers will charge every x trips and charge until they replenish the distance they 
     covered in those x trips. Assume a distribution of charger types where we can set the fraction 
     of each type.
@@ -127,8 +127,8 @@ def determine_charger_availability_tnc(level_2_frac: float = 0.5) -> dict:
     dcfc_frac = 1 - level_2_frac
 
     # create a distribution of charger types
-    charger_list = [7.2]*level_2_frac*100
-    charger_list = charger_list + [150]*dcfc_frac*100
+    charger_list = [7.2]* int(level_2_frac*100)
+    charger_list = charger_list + [150]* int(dcfc_frac*100)
 
     # randomly select a charger type
     charger_type = np.random.choice(charger_list)
@@ -260,8 +260,9 @@ def create_charging_events(
     dummy = weekday
 
     # Only select trips in private autos for passenger vehicle charging simulation
-    trips_dummy = df_trips.loc[df_trips['mode'].isin(['PRIVATE_AUTO'])].copy()
-
+    #trips_dummy = df_trips.loc[df_trips['mode'].isin(['PRIVATE_AUTO'])].copy()
+    trips_dummy = df_trips.copy()
+    
     # Note: make home overnight charging priority in the future
     trips = trips_dummy.sort_values(by='start_time')
     # Initialize stop_duration column
@@ -273,6 +274,7 @@ def create_charging_events(
             trips.iloc[i, trips.columns.get_loc('end_time')]
     # For the last stop of the day, calculate the stop duration assuming the next start
     # time is the same as the start time of the first trip of the day
+    #print(len(trips))
     trips.iloc[len(trips)-1, trips.columns.get_loc('stop_duration')] =\
         trips.iloc[0, trips.columns.get_loc('start_time')] -\
         (trips.iloc[len(trips)-1, trips.columns.get_loc('end_time')
