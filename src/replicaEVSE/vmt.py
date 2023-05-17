@@ -1,7 +1,12 @@
 import dask.dataframe as dd
 import pandas as pd
 
-def calc_vmt_by_county(df: pd.DataFrame, mode: str, weekday: str) -> pd.DataFrame:
+
+def calc_vmt_by_county(df: pd.DataFrame,
+                       mode: str,
+                       weekday: str,
+                       county_key: str = 'home_cty'
+                       ) -> pd.DataFrame:
     """
     Calculate VMT by county for a given mode
 
@@ -21,5 +26,5 @@ def calc_vmt_by_county(df: pd.DataFrame, mode: str, weekday: str) -> pd.DataFram
     """
     df = df[df['mode'] == mode]
     df = df[df['weekday'] == weekday]
-    df = df.groupby('home_cty')['distance_miles'].sum().reset_index()
+    df = df.groupby(county_key)['distance_miles'].sum().reset_index()
     return df
