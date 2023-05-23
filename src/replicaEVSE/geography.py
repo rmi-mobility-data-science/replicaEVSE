@@ -16,6 +16,8 @@ def get_bg_shapefiles(state, counties=None):
         Two-digit numerical FIPS state code
         https://en.wikipedia.org/wiki/Federal_Information_Processing_Standard_state_code
     
+    counties : list of county FIPS numbers, optional
+    
     Returns
     -------
     geodataframe

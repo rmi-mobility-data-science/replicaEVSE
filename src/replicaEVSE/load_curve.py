@@ -340,6 +340,7 @@ def create_charging_events(
         charging events
 
     """
+    # prolly get rid of this since we do both days
     dummy = weekday
 
     # Only select trips in private autos for passenger vehicle charging simulation
@@ -349,6 +350,7 @@ def create_charging_events(
     # Note: make home overnight charging priority in the future
     trips = trips_dummy.sort_values(by='start_time')
     # Initialize stop_duration column
+    
     trips['stop_duration'] = 0
     # For each row in the trips table, calculate the stop duration
     for i in range(0, len(trips)-1):
@@ -538,9 +540,7 @@ def distribute_charge(
 
 
 
-def determine_energy_consumption(person_df, trips_df):
-    # Notes
-    # This is currently a dummy function. The person/trip data should be used to determine what the vehicle type is, and what the energy consumption per mile should be
+def determine_energy_consumption(trips_df):
     """Determines energy consumption (kWh/mi) of the vehicle associated with a given person
     Parameters
     ----------
@@ -554,9 +554,12 @@ def determine_energy_consumption(person_df, trips_df):
     float
         Energy consumption rate (kWh/mi) of vehicle associated with a given person
     """
-    dummy = person_df
-    dummy = trips_df
-    return 0.3
+
+    # richer people might have larger and less efficient vehicles?
+    if trips_df['household_income'] > 100000:
+        return 0.1
+    else:
+        return 0.3
 
 def simulate_person_load(
     trips_df,
