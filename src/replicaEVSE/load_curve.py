@@ -73,17 +73,14 @@ def _calculate_stop_duration(df: pd.DataFrame,
     return df
 
 
-def determine_charger_availability(
+def _determine_charger_availability(
     person_df,
     trips_df
 ):
-    # Notes
-    # This should be revised to incorporate information about the person.
-    # For example, the location of the home/work and type of home/work should inform whether
-    # charging is available at these locations.
-    # Also, some drivers may have different orders of preference for the
-    # different charging options.
-    """Uses person data and trips data to determine which types of charging the driver has access to, and what the order of preference is
+    """Depricated for now. Original version from John. Uses person data and trips data to determine 
+    which types of charging the driver has access to, and what the order of 
+    preference is. 
+
     Parameters
     ----------
     person_df : pandas DataFrame
@@ -96,6 +93,13 @@ def determine_charger_availability(
     dictionary
         Dictionary of available charging locations (HOME, WORK, and/or PUBLIC), with the power in kW for each option. The order of appearance in the dictionary sets the order of preference for the options.
     """
+    # Notes
+    # This should be revised to incorporate information about the person.
+    # For example, the location of the home/work and type of home/work should inform whether
+    # charging is available at these locations.
+    # Also, some drivers may have different orders of preference for the
+    # different charging options.
+
     dummy = person_df
     charge_set = list(set(trips_df.charge_type))
     charge_dict = {}
@@ -109,7 +113,10 @@ def determine_charger_availability(
         charge_dict.update({'PUBLIC': 150})
     return charge_dict
 
-def determine_charger_availability_tnc(level_2_frac: float = 0.5) -> dict:
+
+
+
+def determine_charger_availability_tnc(df: pd.DataFrame, l2_frac: float = 0.5) -> dict:
     """ This will determine what kind on charger is available for the TNC trips. The replica data 
     doesn't track vehicles or drivers yet so this is just all the passengers. We are going to assume 
     the tnc drivers will charge every x trips and charge until they replenish the distance they 
@@ -124,10 +131,81 @@ def determine_charger_availability_tnc(level_2_frac: float = 0.5) -> dict:
         dict: dict of type of charger the tnc uses in kw/h. 
     """
     charge_dict = {}
-    dcfc_frac = 1 - level_2_frac
+    dcfc_frac = 1 - l2_frac
 
     # create a distribution of charger types
-    charger_list = [7.2]* int(level_2_frac*100)
+    charger_list = [7.2]* int(l2_frac*100)
+    charger_list = charger_list + [150]* int(dcfc_frac*100)
+
+    # randomly select a charger type
+    charger_type = np.random.choice(charger_list)
+    if charger_type == 7.2:
+        charge_dict.update({'HOME': 7.2})
+    if charger_type == 150:
+        charge_dict.update({'PUBLIC': 150})
+    return charge_dict
+
+
+
+def determine_charger_availability_ldv(df: pd.DataFrame, l2_frac: float = 0.5) -> dict:
+    """ This will determine what kind on charger is available for the driver. It takes in 
+    information on the driver and apportions what kind of charger they have access to in a 
+    probabilistic manner. There are a lot of assumptions that go into this in terms of percentages 
+    that should be parameterized in the future.
+
+
+    Args:
+        l2_frac (float): fraction of level 2 chargers. Defaults to 0.5. 
+        DCFC will be 1 - l2_frac. 
+
+    Returns:
+        dict: dict of type of charger the tnc uses in kw/h. 
+    """
+    ## single family vs multi-unit
+    # most single family homes should be L2
+    # some fraction L1? 10%
+    # 80% EV owners live in single family homes <- this is harder to code up
+    # 2035 60% of EV owners live in single family homes
+    # these numbers should come from the stock rollover model - registration data?
+
+    ## multi-unit 
+    # some residents wont have access to charging
+    # 20% have L2 at home (increase to 75% by 2035) should also charge while out. 
+    # 25% work L2 (increase to 50% by 2035) and public but not home
+    # remaining % public DCFC/L2 everyone has access to this. 
+
+    ## workplace 
+    # what % have access at work?
+    # default to 10% have access to work charging, will increase over time
+    
+    # 50% of civic buildings have charging
+    # 10% of industrial 
+    # TNCs are either L2 or DCFC
+
+    # use destination_building_use_l2
+    
+    ## Public 
+    # Higher L2 = 19 kw
+    # if retail - DCFC
+    # if open parking - L2
+    # if trip longer than 100 miles, assume next charge is DCFC
+    # the lower limit of dwell time should be longer for L2
+
+    # what about light duty fleet vehicles? -> ask Dave
+
+
+    ### What outputs?
+    # number of chargers per type per county. 
+    # load curve for each charger type per county. 
+
+
+
+
+    charge_dict = {}
+    dcfc_frac = 1 - l2_frac
+
+    # create a distribution of charger types
+    charger_list = [7.2]* int(l2_frac*100)
     charger_list = charger_list + [150]* int(dcfc_frac*100)
 
     # randomly select a charger type
@@ -139,6 +217,15 @@ def determine_charger_availability_tnc(level_2_frac: float = 0.5) -> dict:
     return charge_dict
 
 def calculate_stop_duration(trips_df: pd.DataFrame) -> pd.DataFrame:
+    """Note: this is currently not employed, choosing to stick with 
+    the old looping method for now. 
+
+    Args:
+        trips_df (pd.DataFrame): replica trip data table
+
+    Returns:
+        pd.DataFrame: updated table with new stop_duration column
+    """
     # Note: make home overnight charging priority in the future
     trips = trips_df.sort_values(by='start_time')
     # Initialize stop_duration column
@@ -178,12 +265,8 @@ def create_charging_events_tnc(
         charging events
 
     """
-
-    # Only select trips in private autos for passenger vehicle charging simulation
-
-    trips = calculate_stop_duration(trips_df)
-
-
+    trips = trips_df.copy()
+    
     # Initialize column for energy used per charge
     trips['charge_energy_used_kWh'] = 0
     # Calculate total miles driven for the day
@@ -534,7 +617,7 @@ def simulate_person_load(
             if len(trips_temp.loc[trips_temp.weekday == i]) > 0:
                 # For each day (thursday and saturday), get charger availability for person j
                 # and determine which stopping events will result in charges
-                charger_availability = determine_charger_availability(
+                charger_availability = determine_charger_availability_ldv(
                     person_temp, trips_temp.loc[trips_temp.weekday == i])
                 charge_dfs += [
                     create_charging_events(
