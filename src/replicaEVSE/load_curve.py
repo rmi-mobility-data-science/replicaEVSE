@@ -7,7 +7,7 @@ import numpy as np
 import dask
 
 
-def calculate_stop_duration(df: pd.DataFrame,
+def _calculate_stop_duration(df: pd.DataFrame,
                             columns_list: list = None) -> pd.DataFrame:
     """ Calculate the charging duration of the trips. This is the time when 
     we would expect to be charging. We include the overnight duration. 
@@ -73,17 +73,14 @@ def calculate_stop_duration(df: pd.DataFrame,
     return df
 
 
-def determine_charger_availability(
+def _determine_charger_availability(
     person_df,
     trips_df
 ):
-    # Notes
-    # This should be revised to incorporate information about the person.
-    # For example, the location of the home/work and type of home/work should inform whether
-    # charging is available at these locations.
-    # Also, some drivers may have different orders of preference for the
-    # different charging options.
-    """Uses person data and trips data to determine which types of charging the driver has access to, and what the order of preference is
+    """Depricated for now. Original version from John. Uses person data and trips data to determine 
+    which types of charging the driver has access to, and what the order of 
+    preference is. 
+
     Parameters
     ----------
     person_df : pandas DataFrame
@@ -96,6 +93,13 @@ def determine_charger_availability(
     dictionary
         Dictionary of available charging locations (HOME, WORK, and/or PUBLIC), with the power in kW for each option. The order of appearance in the dictionary sets the order of preference for the options.
     """
+    # Notes
+    # This should be revised to incorporate information about the person.
+    # For example, the location of the home/work and type of home/work should inform whether
+    # charging is available at these locations.
+    # Also, some drivers may have different orders of preference for the
+    # different charging options.
+
     dummy = person_df
     charge_set = list(set(trips_df.charge_type))
     charge_dict = {}
@@ -109,6 +113,209 @@ def determine_charger_availability(
         charge_dict.update({'PUBLIC': 150})
     return charge_dict
 
+
+
+
+def determine_charger_availability_tnc(df: pd.DataFrame, l2_frac: float = 0.5) -> dict:
+    """ This will determine what kind on charger is available for the TNC trips. The replica data 
+    doesn't track vehicles or drivers yet so this is just all the passengers. We are going to assume 
+    the tnc drivers will charge every x trips and charge until they replenish the distance they 
+    covered in those x trips. Assume a distribution of charger types where we can set the fraction 
+    of each type.
+
+    Args:
+        level_2_frac (float): fraction of level 2 chargers. Defaults to 0.5. 
+        DCFC will be 1 - level_2_frac. 
+
+    Returns:
+        dict: dict of type of charger the tnc uses in kw/h. 
+    """
+    charge_dict = {}
+    dcfc_frac = 1 - l2_frac
+
+    # create a distribution of charger types
+    charger_list = [7.2]* int(l2_frac*100)
+    charger_list = charger_list + [150]* int(dcfc_frac*100)
+
+    # randomly select a charger type
+    charger_type = np.random.choice(charger_list)
+    if charger_type == 7.2:
+        charge_dict.update({'HOME': 7.2})
+    if charger_type == 150:
+        charge_dict.update({'PUBLIC': 150})
+    return charge_dict
+
+
+
+def determine_charger_availability_ldv(df: pd.DataFrame, l2_frac: float = 0.5) -> dict:
+    """ This will determine what kind on charger is available for the driver. It takes in 
+    information on the driver and apportions what kind of charger they have access to in a 
+    probabilistic manner. There are a lot of assumptions that go into this in terms of percentages 
+    that should be parameterized in the future.
+
+
+    Args:
+        l2_frac (float): fraction of level 2 chargers. Defaults to 0.5. 
+        DCFC will be 1 - l2_frac. 
+
+    Returns:
+        dict: dict of type of charger the tnc uses in kw/h. 
+    """
+    ## single family vs multi-unit
+    # most single family homes should be L2
+    # some fraction L1? 10%
+    # 80% EV owners live in single family homes <- this is harder to code up
+    # 2035 60% of EV owners live in single family homes
+    # these numbers should come from the stock rollover model - registration data?
+
+    ## multi-unit 
+    # some residents wont have access to charging
+    # 20% have L2 at home (increase to 75% by 2035) should also charge while out. 
+    # 25% work L2 (increase to 50% by 2035) and public but not home
+    # remaining % public DCFC/L2 everyone has access to this. 
+
+    ## workplace 
+    # what % have access at work?
+    # default to 10% have access to work charging, will increase over time
+    
+    # 50% of civic buildings have charging
+    # 10% of industrial 
+    # TNCs are either L2 or DCFC
+
+    # use destination_building_use_l2
+    
+    ## Public 
+    # Higher L2 = 19 kw
+    # if retail - DCFC
+    # if open parking - L2
+    # if trip longer than 100 miles, assume next charge is DCFC
+    # the lower limit of dwell time should be longer for L2
+
+    # what about light duty fleet vehicles? -> ask Dave
+
+
+    ### What outputs?
+    # number of chargers per type per county. 
+    # load curve for each charger type per county. 
+
+
+
+
+    charge_dict = {}
+    dcfc_frac = 1 - l2_frac
+
+    # create a distribution of charger types
+    charger_list = [7.2]* int(l2_frac*100)
+    charger_list = charger_list + [150]* int(dcfc_frac*100)
+
+    # randomly select a charger type
+    charger_type = np.random.choice(charger_list)
+    if charger_type == 7.2:
+        charge_dict.update({'HOME': 7.2})
+    if charger_type == 150:
+        charge_dict.update({'PUBLIC': 150})
+    return charge_dict
+
+def calculate_stop_duration(trips_df: pd.DataFrame) -> pd.DataFrame:
+    """Note: this is currently not employed, choosing to stick with 
+    the old looping method for now. 
+
+    Args:
+        trips_df (pd.DataFrame): replica trip data table
+
+    Returns:
+        pd.DataFrame: updated table with new stop_duration column
+    """
+    # Note: make home overnight charging priority in the future
+    trips = trips_df.sort_values(by='start_time')
+    # Initialize stop_duration column
+    trips['stop_duration'] = 0
+    # For each row in the trips table, calculate the stop duration
+    for i in range(0, len(trips)-1):
+        trips.iloc[i, trips.columns.get_loc('stop_duration')] =\
+            trips.iloc[i+1, trips.columns.get_loc('start_time')] -\
+            trips.iloc[i, trips.columns.get_loc('end_time')]
+    # For the last stop of the day, calculate the stop duration assuming the next start
+    # time is the same as the start time of the first trip of the day
+    trips.iloc[len(trips)-1, trips.columns.get_loc('stop_duration')] =\
+        trips.iloc[0, trips.columns.get_loc('start_time')] -\
+        (trips.iloc[len(trips)-1, trips.columns.get_loc('end_time')
+                    ]-pd.to_timedelta('1 day'))
+    return trips
+
+def create_charging_events_tnc(
+    trips_df,
+    charger_availability,
+    consumption_kWh_per_mi,
+):
+    """Creates dataframe of charging events
+    Parameters
+    ----------
+    df_trips : Pandas DataFrame
+        trips dataframe for a single person_id
+    charger_availability : dictionary
+        dictionary of available charging locations and charger power
+        ordered by preference (e.g., {'HOME':7.2,'WORK':7.2,'PUBLIC':150})
+    consumption_kWh_per_mi : float
+        kWh/mi of the vehicle
+
+    Returns
+    -------
+    Pandas DataFrame
+        charging events
+
+    """
+    trips = trips_df.copy()
+    
+    # Initialize column for energy used per charge
+    trips['charge_energy_used_kWh'] = 0
+    # Calculate total miles driven for the day
+    total_mi = float(np.sum(trips.distance_miles))
+    # Calculate total energy consumption from total miles driven and energy consumption estimate
+    total_energy = total_mi*consumption_kWh_per_mi
+    # Initialize total energy to consume
+    remaining_energy = total_energy
+    # Use charge type to determine charger power available
+    trips['charger_power_kW'] = [
+        charger_availability[x] for x in trips.charge_type
+    ]
+    # Calculate total charge opportunity using stop duration and charger power
+    trips['charge_opportunity_remaining_kWh'] = [
+        x[0].seconds/60/60*x[1] for x in zip(trips.stop_duration, trips.charger_power_kW)
+    ]
+    # Initialize count variables
+    i = 0
+    j = 0
+    opportunities = True
+
+    # Note: charge priority should favor home charging
+    # Allocate charge energy across available charge opportunities until all energy is
+    # recharged or opportunities run out
+    while (remaining_energy > 0) & (opportunities is True):
+        charge_location = list(charger_availability.keys())[i]
+        stops_sub = trips.loc[trips.charge_type == charge_location].sort_values(
+            by='stop_duration', ascending=False).copy()
+        ind = stops_sub.index[j]
+        charge_energy = np.min(
+            [trips.loc[ind, 'charge_opportunity_remaining_kWh'], remaining_energy])
+        trips.loc[ind, 'charge_energy_used_kWh'] = charge_energy
+        trips.loc[ind, 'charge_opportunity_remaining_kWh'] -= charge_energy
+
+        remaining_energy = np.max([remaining_energy-charge_energy, 0])
+        j += 1
+        if j == len(stops_sub):
+            j = 0
+            i += 1
+        if i == len(charger_availability):
+            opportunities = False
+    # Return stop/charge info
+    return (trips[[
+        'activity_id',
+        'charger_power_kW',
+        'stop_duration',
+        'charge_energy_used_kWh',
+        'charge_opportunity_remaining_kWh'
+    ]])
 
 def create_charging_events(
     df_trips,
@@ -137,8 +344,9 @@ def create_charging_events(
     dummy = weekday
 
     # Only select trips in private autos for passenger vehicle charging simulation
-    trips_dummy = df_trips.loc[df_trips['mode'].isin(['PRIVATE_AUTO'])].copy()
-
+    #trips_dummy = df_trips.loc[df_trips['mode'].isin(['PRIVATE_AUTO'])].copy()
+    trips_dummy = df_trips.copy()
+    
     # Note: make home overnight charging priority in the future
     trips = trips_dummy.sort_values(by='start_time')
     # Initialize stop_duration column
@@ -151,6 +359,7 @@ def create_charging_events(
             trips.iloc[i, trips.columns.get_loc('end_time')]
     # For the last stop of the day, calculate the stop duration assuming the next start
     # time is the same as the start time of the first trip of the day
+    #print(len(trips))
     trips.iloc[len(trips)-1, trips.columns.get_loc('stop_duration')] =\
         trips.iloc[0, trips.columns.get_loc('start_time')] -\
         (trips.iloc[len(trips)-1, trips.columns.get_loc('end_time')
@@ -411,8 +620,128 @@ def simulate_person_load(
             if len(trips_temp.loc[trips_temp.weekday == i]) > 0:
                 # For each day (thursday and saturday), get charger availability for person j
                 # and determine which stopping events will result in charges
-                charger_availability = determine_charger_availability(
-                    trips_temp.loc[trips_temp.weekday == i])
+                charger_availability = determine_charger_availability_ldv(
+                    person_temp, trips_temp.loc[trips_temp.weekday == i])
+                charge_dfs += [
+                    create_charging_events(
+                        df_trips=trips_temp.loc[trips_temp.weekday == i].copy(
+                        ),
+                        charger_availability=charger_availability,
+                        consumption_kWh_per_mi=vehicle_energy_consumption,
+                        weekday=i
+                    )
+                ]
+        # Concatenate results from the two days together
+        charge_df = pd.concat(charge_dfs)
+        charge_df['simulation_id'] = simulation_id
+        # Create a unique ID for each charge
+        charge_df['charge_id'] = [x[0]+'_'+x[1]
+                                  for x in zip(charge_df.activity_id, charge_df.simulation_id)]
+        charge_df['person_id'] = j
+        # Merge charge data with trips data
+        trips_temp = trips_temp.merge(charge_df)
+        # #Create list of empty lists to fill with load data
+        # trips_temp['Load']=[[]]*len(trips_temp)
+
+        load_list = []
+        for i in range(0, len(trips_temp)):
+            # For each charge, distribute the load through time and the resulting df to the load df
+            if trips_temp.charge_energy_used_kWh.iloc[i] > 0:
+                weekday = trips_temp.weekday.iloc[i]
+                load = distribute_charge(
+                    charge_demand=trips_temp.charge_energy_used_kWh.iloc[i],
+                    stop_time=trips_temp.end_time.iloc[i],
+                    stop_duration=trips_temp.stop_duration.iloc[i],
+                    time_window=pd.Timedelta('1 hour'),
+                    charge_power=trips_temp.charger_power_kW.iloc[i],
+                    managed=managed if trips_temp.charge_type.iloc[i] in [
+                        'HOME', 'WORK'] else False,
+                    existing_load=existing_load.loc[existing_load.Weekday ==
+                                                    weekday, 'D'].values
+                )
+                load['charge_id'] = trips_temp.charge_id.iloc[i]
+                load['simulation_id'] = simulation_id
+                load['person_id'] = trips_temp.person_id.iloc[i]
+                load['load_segment_id'] = [
+                    x[0]+'_'+str(x[1]) for x in zip(load.charge_id, load.index)]
+                load_list += [load]
+        if len(load_list) > 0:
+            loads_collection += [pd.concat(load_list)]
+            trips_list += [trips_temp]
+
+    trips_df = pd.concat(trips_list)
+    load_df = pd.concat(loads_collection)
+    # Return charges and loads dataframes as a dictionary
+
+    charges = trips_df[['person_id', 'charge_id', 'activity_id', 'simulation_id',
+                                  'charger_power_kW', 'charge_energy_used_kWh',
+                                 'charge_opportunity_remaining_kWh']]
+    
+    loads = load_df[['person_id', 'load_segment_id', 'charge_id', 'window_start_time', 'window_end_time', 'load_kW']]
+
+    #return {'charges': trips_df[['charge_id', 'activity_id', 'simulation_id',
+    #                              'charger_power_kW', 'charge_energy_used_kWh',
+    #                             'charge_opportunity_remaining_kWh']],
+    #        'loads': load_df[['load_segment_id', 'charge_id', 'window_start_time', 'window_end_time', 'load_kW']]}
+
+    return {'charges': charges, 'loads': loads}
+
+def simulate_person_load_tnc(
+    trips_df,
+    existing_load,
+    simulation_id,
+    managed=False
+):
+    """Simulates loads for list of people
+    Parameters
+    ----------
+    person_ids : list
+        List of person_ids
+    database_connection : MySQL connector
+        Connection to MySQL database
+    person_columns : list
+        Column names for person data table
+    trips_columns : list
+        Column names for trips table
+    existing_load : Pandas DataFrame
+        Existing load data frame
+    simulation_id : string
+        Identifier for simulation run
+    managed : boolean
+        Whether the charging is managed to reduce peak load (or for other objectives TBD)
+
+    Returns
+    -------
+    dictionary
+        Dictionary of dataframes:
+            "charges" dataframe in which each row is a charge
+            "loads" dataframe in which each row is a time window
+    """
+
+    # Take subset of trips using private autos as candidates for charging
+    # trips_df = df.loc[df['mode'] == 'PRIVATE_AUTO'].copy()
+    if len(trips_df) == 0:
+        return ({'charges': 'No trips', 'loads': 'No trips'})
+
+    trips_list = []
+    loads_collection = []
+    for j in list(set(trips_df.person_id)):
+        # Get the subset of trips made by person j
+        trips_temp = trips_df.loc[trips_df.person_id == j].copy()
+        # Get the person data for person j
+        # person_temp = persons_df.loc[persons_df.person_id == j].copy()
+        person_temp = pd.DataFrame()
+        # Determine vehicle energy consumpsion rate in kWh/mi
+        # NOTE: this is currently a dummy function = 0.3
+        vehicle_energy_consumption = determine_energy_consumption(
+            person_temp, trips_temp)
+
+        charge_dfs = []
+        for i in ['thursday', 'saturday']:
+            if len(trips_temp.loc[trips_temp.weekday == i]) > 0:
+                # For each day (thursday and saturday), get charger availability for person j
+                # and determine which stopping events will result in charges
+                charger_availability = determine_charger_availability_tnc(level_2_frac=0.5)
                 charge_dfs += [
                     create_charging_events(
                         df_trips=trips_temp.loc[trips_temp.weekday == i].copy(
