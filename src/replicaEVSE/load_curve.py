@@ -161,46 +161,6 @@ def determine_charger_availability_ldv(df: pd.DataFrame, l2_frac: float = 0.5) -
     Returns:
         dict: dict of type of charger the tnc uses in kw/h. 
     """
-    ## single family vs multi-unit
-    # most single family homes should be L2
-    # some fraction L1? 10%
-    # 80% EV owners live in single family homes <- this is harder to code up
-    # 2035 60% of EV owners live in single family homes
-    # these numbers should come from the stock rollover model - registration data?
-
-    ## multi-unit 
-    # some residents wont have access to charging
-    # 20% have L2 at home (increase to 75% by 2035) should also charge while out. 
-    # 25% work L2 (increase to 50% by 2035) and public but not home
-    # remaining % public DCFC/L2 everyone has access to this. 
-
-    ## workplace 
-    # what % have access at work?
-    # default to 10% have access to work charging, will increase over time
-    
-    # 50% of civic buildings have charging
-    # 10% of industrial 
-    # TNCs are either L2 or DCFC
-
-    # use destination_building_use_l2
-    
-    ## Public 
-    # Higher L2 = 19 kw
-    # if retail - DCFC
-    # if open parking - L2
-    # if trip longer than 100 miles, assume next charge is DCFC
-    # the lower limit of dwell time should be longer for L2
-
-    # what about light duty fleet vehicles? -> ask Dave
-
-
-    ### What outputs?
-    # number of chargers per type per county. 
-    # load curve for each charger type per county. 
-
-
-
-
     charge_dict = {}
     dcfc_frac = 1 - l2_frac
 
@@ -330,7 +290,7 @@ def create_charging_events(
         trips dataframe for a single person_id
     charger_availability : dictionary
         dictionary of available charging locations and charger power
-        ordered by preference (e.g., {'HOME':7.2,'WORK':7.2,'PUBLIC':150})
+        (e.g., {'HOME':7.2,'WORK':7.2,'PUBLIC':150})
     consumption_kWh_per_mi : float
         kWh/mi of the vehicle
 
@@ -364,6 +324,10 @@ def create_charging_events(
         trips.iloc[0, trips.columns.get_loc('start_time')] -\
         (trips.iloc[len(trips)-1, trips.columns.get_loc('end_time')
                     ]-pd.to_timedelta('1 day'))
+    
+    # limit to stops > 10 mins
+    trips = trips.loc[trips['stop_duration'] > pd.to_timedelta('10 minutes')]
+
     # Initialize column for energy used per charge
     trips['charge_energy_used_kWh'] = 0
     # Calculate total miles driven for the day
@@ -377,34 +341,50 @@ def create_charging_events(
         charger_availability[x] for x in trips.charge_type
     ]
     # Calculate total charge opportunity using stop duration and charger power
+    # this is the total amount of energy that can be charged at each stop
     trips['charge_opportunity_remaining_kWh'] = [
         x[0].seconds/60/60*x[1] for x in zip(trips.stop_duration, trips.charger_power_kW)
     ]
     # Initialize count variables
-    i = 0
-    j = 0
+    i = 0 # charger type index
+    j = 0 # stop index
+    
     opportunities = True
 
-    # Note: charge priority should favor home charging
+    # Note: charge priority favors longest stops first
     # Allocate charge energy across available charge opportunities until all energy is
     # recharged or opportunities run out
     while (remaining_energy > 0) & (opportunities is True):
         charge_location = list(charger_availability.keys())[i]
+        
+        # by sorting by stop duration, we are prioritizing overnight and longer stops
         stops_sub = trips.loc[trips.charge_type == charge_location].sort_values(
             by='stop_duration', ascending=False).copy()
         ind = stops_sub.index[j]
+        
+        # charge energy is the minimum of the remaining energy and the 
+        # remaining charge opportunity
         charge_energy = np.min(
             [trips.loc[ind, 'charge_opportunity_remaining_kWh'], remaining_energy])
+        
+        # subtract the charge energy from the energy provided at that stop
         trips.loc[ind, 'charge_energy_used_kWh'] = charge_energy
         trips.loc[ind, 'charge_opportunity_remaining_kWh'] -= charge_energy
 
         remaining_energy = np.max([remaining_energy-charge_energy, 0])
+
+        # move to next longest stop
         j += 1
+        
+        # if we've reached the end of the stops, move to the next charge location
+        # until we get to the next charging type thus prioritizing whatever type
+        # of charging level is first in the determine_charger_availability function. 
         if j == len(stops_sub):
             j = 0
-            i += 1
+            i += 1 # move to next charger type
         if i == len(charger_availability):
             opportunities = False
+    
     # Return stop/charge info
     return (trips[[
         'activity_id',
@@ -540,7 +520,7 @@ def distribute_charge(
 
 
 
-def determine_energy_consumption(trips_df):
+def determine_energy_consumption(year: str=None) -> float:
     """Determines energy consumption (kWh/mi) of the vehicle associated with a given person
     Parameters
     ----------
@@ -554,11 +534,7 @@ def determine_energy_consumption(trips_df):
     float
         Energy consumption rate (kWh/mi) of vehicle associated with a given person
     """
-
-    # richer people might have larger and less efficient vehicles?
-    if trips_df['household_income'] > 100000:
-        return 0.1
-    else:
+    if year is None:
         return 0.3
 
 def simulate_person_load(
