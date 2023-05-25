@@ -177,7 +177,11 @@ def determine_charger_availability_ldv(df: pd.DataFrame, l2_frac: float = 0.5) -
     return charge_dict
 
 def calculate_stop_duration(trips_df: pd.DataFrame) -> pd.DataFrame:
-    """Note: this is currently not employed, choosing to stick with 
+    """ TODO: implement this before making the big combined trips table. 
+    This needs to be run on a single weekday so do it before stacking. Might still need
+    to loop through each person_id. Slow but only needs to run once. Or try a groupby. 
+    
+    Note: this is currently not employed, choosing to stick with 
     the old looping method for now. 
 
     Args:
@@ -186,7 +190,7 @@ def calculate_stop_duration(trips_df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: updated table with new stop_duration column
     """
-    # Note: make home overnight charging priority in the future
+    
     trips = trips_df.sort_values(by='start_time')
     # Initialize stop_duration column
     trips['stop_duration'] = 0
@@ -203,30 +207,20 @@ def calculate_stop_duration(trips_df: pd.DataFrame) -> pd.DataFrame:
                     ]-pd.to_timedelta('1 day'))
     return trips
 
-def create_charging_events_tnc(
-    trips_df,
-    charger_availability,
-    consumption_kWh_per_mi,
-):
-    """Creates dataframe of charging events
+def calculate_energy_available_per_stop(trips, consumption_kWh_per_mi, charger_availability):
+    """Calculates the energy available per stop
+
     Parameters
     ----------
-    df_trips : Pandas DataFrame
+    trips : Pandas DataFrame
         trips dataframe for a single person_id
-    charger_availability : dictionary
-        dictionary of available charging locations and charger power
-        ordered by preference (e.g., {'HOME':7.2,'WORK':7.2,'PUBLIC':150})
-    consumption_kWh_per_mi : float
-        kWh/mi of the vehicle
 
     Returns
     -------
     Pandas DataFrame
-        charging events
+        trips dataframe with energy available per stop
 
     """
-    trips = trips_df.copy()
-    
     # Initialize column for energy used per charge
     trips['charge_energy_used_kWh'] = 0
     # Calculate total miles driven for the day
@@ -240,42 +234,11 @@ def create_charging_events_tnc(
         charger_availability[x] for x in trips.charge_type
     ]
     # Calculate total charge opportunity using stop duration and charger power
+    # this is the total amount of energy that can be charged at each stop
     trips['charge_opportunity_remaining_kWh'] = [
         x[0].seconds/60/60*x[1] for x in zip(trips.stop_duration, trips.charger_power_kW)
     ]
-    # Initialize count variables
-    i = 0
-    j = 0
-    opportunities = True
-
-    # Note: charge priority should favor home charging
-    # Allocate charge energy across available charge opportunities until all energy is
-    # recharged or opportunities run out
-    while (remaining_energy > 0) & (opportunities is True):
-        charge_location = list(charger_availability.keys())[i]
-        stops_sub = trips.loc[trips.charge_type == charge_location].sort_values(
-            by='stop_duration', ascending=False).copy()
-        ind = stops_sub.index[j]
-        charge_energy = np.min(
-            [trips.loc[ind, 'charge_opportunity_remaining_kWh'], remaining_energy])
-        trips.loc[ind, 'charge_energy_used_kWh'] = charge_energy
-        trips.loc[ind, 'charge_opportunity_remaining_kWh'] -= charge_energy
-
-        remaining_energy = np.max([remaining_energy-charge_energy, 0])
-        j += 1
-        if j == len(stops_sub):
-            j = 0
-            i += 1
-        if i == len(charger_availability):
-            opportunities = False
-    # Return stop/charge info
-    return (trips[[
-        'activity_id',
-        'charger_power_kW',
-        'stop_duration',
-        'charge_energy_used_kWh',
-        'charge_opportunity_remaining_kWh'
-    ]])
+    return trips
 
 def create_charging_events(
     df_trips,
@@ -309,42 +272,18 @@ def create_charging_events(
     
     # Note: make home overnight charging priority in the future
     trips = trips_dummy.sort_values(by='start_time')
-    # Initialize stop_duration column
     
-    trips['stop_duration'] = 0
-    # For each row in the trips table, calculate the stop duration
-    for i in range(0, len(trips)-1):
-        trips.iloc[i, trips.columns.get_loc('stop_duration')] =\
-            trips.iloc[i+1, trips.columns.get_loc('start_time')] -\
-            trips.iloc[i, trips.columns.get_loc('end_time')]
-    # For the last stop of the day, calculate the stop duration assuming the next start
-    # time is the same as the start time of the first trip of the day
-    #print(len(trips))
-    trips.iloc[len(trips)-1, trips.columns.get_loc('stop_duration')] =\
-        trips.iloc[0, trips.columns.get_loc('start_time')] -\
-        (trips.iloc[len(trips)-1, trips.columns.get_loc('end_time')
-                    ]-pd.to_timedelta('1 day'))
+    # Calculate stop duration
+    trips = calculate_stop_duration(trips)
     
     # limit to stops > 10 mins
     trips = trips.loc[trips['stop_duration'] > pd.to_timedelta('10 minutes')]
 
-    # Initialize column for energy used per charge
-    trips['charge_energy_used_kWh'] = 0
-    # Calculate total miles driven for the day
-    total_mi = float(np.sum(trips.distance_miles))
-    # Calculate total energy consumption from total miles driven and energy consumption estimate
-    total_energy = total_mi*consumption_kWh_per_mi
-    # Initialize total energy to consume
-    remaining_energy = total_energy
-    # Use charge type to determine charger power available
-    trips['charger_power_kW'] = [
-        charger_availability[x] for x in trips.charge_type
-    ]
-    # Calculate total charge opportunity using stop duration and charger power
-    # this is the total amount of energy that can be charged at each stop
-    trips['charge_opportunity_remaining_kWh'] = [
-        x[0].seconds/60/60*x[1] for x in zip(trips.stop_duration, trips.charger_power_kW)
-    ]
+    # Calculate energy available per stop
+    # this is labeled as charge_opportunity_remaining_kWh since we subtract from it
+    # as we charge. 
+    trips = calculate_energy_available_per_stop(trips, consumption_kWh_per_mi, charger_availability)
+
     # Initialize count variables
     i = 0 # charger type index
     j = 0 # stop index
