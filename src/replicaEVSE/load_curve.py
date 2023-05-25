@@ -244,7 +244,6 @@ def create_charging_events(
     df_trips,
     charger_availability,
     consumption_kWh_per_mi,
-    weekday
 ):
     """Creates dataframe of charging events
     Parameters
@@ -264,10 +263,7 @@ def create_charging_events(
 
     """
     # prolly get rid of this since we do both days
-    dummy = weekday
 
-    # Only select trips in private autos for passenger vehicle charging simulation
-    #trips_dummy = df_trips.loc[df_trips['mode'].isin(['PRIVATE_AUTO'])].copy()
     trips_dummy = df_trips.copy()
     
     # Note: make home overnight charging priority in the future
@@ -475,6 +471,37 @@ def determine_energy_consumption(year: str=None) -> float:
     """
     if year is None:
         return 0.3
+    
+def map_charge_type(row):
+    """maps the destination to the type of charging station. Also maps the home 
+    charging based on single family or multi family home as not all multi family
+    homes with have access to a charger.
+
+    Args:
+        row (pd.DataFrame): row of the dataframe
+
+    Returns:
+        string: string to insert into the charge_type column
+    """
+
+    office_work_buildings = ['education', 'office', 'industrial', 'healthcare',]
+
+    if row['travel_purpose'] == 'HOME':
+        if row['building_type'] == 'single_family':
+            return 'single_family_home'
+        if row['building_type'] == 'mobile':
+            return 'mobile_home'
+        else:
+            return 'multi_family_home'
+    if row['travel_purpose'] == 'WORK':
+        if row['destination_building_use_l2'] == 'civic_institutional':
+            return 'civic_institutional'
+        elif row['destination_building_use_l2'] in office_work_buildings:
+            return 'office'
+        else:
+            return 'non_office_work'
+    else:
+        return 'public'
 
 def simulate_person_load(
     trips_df,
@@ -508,14 +535,18 @@ def simulate_person_load(
             "loads" dataframe in which each row is a time window
     """
 
-    # Take subset of trips using private autos as candidates for charging
-    # trips_df = df.loc[df['mode'] == 'PRIVATE_AUTO'].copy()
+    # if using private auto, need to remove mobile home owners before you pass them
+    # into this function. 
+    if (trips_df['mode'] == 'PRIVATE_AUTO').any():
+        if len(trips_df = trips_df.loc[trips_df['building_type'] == 'mobile']) > 0:
+            print('you need to remove the "building_type" == "mobile"')
+            assert False
+    
     if len(trips_df) == 0:
+        print('empty trips dataframe')
         return ({'charges': 'No trips', 'loads': 'No trips'})
     # Create charge_type column from travel_purpose column
-    trips_df['charge_type'] = trips_df.travel_purpose.copy()
-    trips_df.loc[trips_df.charge_type.isin(
-        ['WORK', 'HOME']) == False, 'charge_type'] = 'PUBLIC'
+    trips_df.apply(map_charge_type, axis=1)
 
     trips_list = []
     loads_collection = []
