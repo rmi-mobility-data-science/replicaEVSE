@@ -1,8 +1,9 @@
 import pandas as pd
-import dask.dataframe as dd
+
 datadir = '../../data/'
 
 def merge_counties_to_full_df():
+    import dask.dataframe as dd
     from dask.distributed import Client, LocalCluster
     cluster = LocalCluster(n_workers=64)
     client = Client(cluster)
@@ -32,20 +33,28 @@ def merge_counties_to_full_df():
     client.close()
 
 def merge_counties_to_full_df_pandas():
-    # read in the full dataset
     df = pd.read_parquet(datadir+'/wa_pop_and_trips_sorted.parquet') # len = 51727268
-    
+
+    print(len(df))
     # read in blockgroup info
     bg_df = pd.read_csv(datadir+'blockgroup_counties.csv')
+    
+    # there are duplicates in the blockgroups. Not sure why. Drop them.
+    bg_df = bg_df.drop_duplicates(subset='destination_bgrp')
     bg_df['destination_bgrp'] = bg_df.destination_bgrp.astype(str)
     bg_df['destination_county'] = bg_df.County.astype(str)
     bg_df['destination_county'] = bg_df['County'] + ', WA'
+    bg_df = bg_df[['destination_bgrp', 'destination_county']]
 
+    print(len(bg_df))
+
+    print('merging')    
     # merge the two
     merged_df = pd.merge(df, bg_df, on='destination_bgrp', how='left')
 
+    print('saving')
     # save as a parquet file
-    merged_df.to_parquet(datadir+'wa_pop_and_trips_sorted_county_2.parquet')
+    merged_df.to_parquet(datadir+'wa_pop_and_trips_sorted_county.parquet')
 
 
 if __name__ == '__main__':
