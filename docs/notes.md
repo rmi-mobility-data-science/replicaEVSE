@@ -21,3 +21,6 @@ the vehicle type is Heavy or Medium duty trucks.
 * there is only 1 person per trip in the commercial trips data
 * None of the commercial drivers are in the population data
 * I don't know how to get `stop_duration` out of trucks...
+
+### Counties
+* only LDV have county information from the population table. Commercial Does not. Using destinatino blockgroup to get counties associated with each person_id (trip for commercial)
