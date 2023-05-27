@@ -156,3 +156,34 @@ def sample_people_by_county(df, ev_df, fraction=0.05):
 
     final_df = pd.concat(reduced_df)
     return final_df
+
+def map_charge_type(row):
+    """maps the destination to the type of charging station. Also maps the home 
+    charging based on single family or multi family home as not all multi family
+    homes with have access to a charger.
+
+    Args:
+        row (pd.DataFrame): row of the dataframe
+
+    Returns:
+        string: string to insert into the charge_type column
+    """
+
+    office_work_buildings = ['education', 'office', 'industrial', 'healthcare',]
+
+    if row['travel_purpose'] == 'HOME':
+        if row['building_type'] == 'single_family':
+            return 'single_family_home'
+        if row['building_type'] == 'mobile':
+            return 'mobile_home'
+        else:
+            return 'multi_family_home'
+    if row['travel_purpose'] == 'WORK':
+        if row['destination_building_use_l2'] == 'civic_institutional':
+            return 'civic_institutional'
+        elif row['destination_building_use_l2'] in office_work_buildings:
+            return 'office'
+        else:
+            return 'non_office_work'
+    else:
+        return 'public'

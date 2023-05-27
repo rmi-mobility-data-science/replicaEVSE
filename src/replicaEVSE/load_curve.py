@@ -147,33 +147,69 @@ def determine_charger_availability_tnc(df: pd.DataFrame, l2_frac: float = 0.5) -
 
 
 
-def determine_charger_availability_ldv(df: pd.DataFrame, l2_frac: float = 0.5) -> dict:
-    """ This will determine what kind on charger is available for the driver. It takes in 
-    information on the driver and apportions what kind of charger they have access to in a 
-    probabilistic manner. There are a lot of assumptions that go into this in terms of percentages 
-    that should be parameterized in the future.
 
-
-    Args:
-        l2_frac (float): fraction of level 2 chargers. Defaults to 0.5. 
-        DCFC will be 1 - l2_frac. 
-
-    Returns:
-        dict: dict of type of charger the tnc uses in kw/h. 
+def determine_charger_availability(
+    trips_df,
+    frac_work_charging=0.2,
+    frac_civic_charging=0.5,
+    frac_multiunit_charging=0.2,
+    frac_singleunit_charging=1.0,
+    frac_public_dcfc=0.9,
+):
     """
+
+    charge_types = ['multi_family_home', 'single_family_home', 'office', 'public',
+    'civic_institutional', 'non_office_work', 'mobile']
+
+    Parameters
+    ----------
+    trips_df : pandas DataFrame
+        Trip data for one individual
+
+    Returns
+    -------
+    dictionary
+        Dictionary of available charging locations (HOME, WORK, and/or PUBLIC), with the power in kW for each option.
+          The order of appearance in the dictionary sets the order of preference for the options.
+    """
+
+
+
+    charge_set = list(set(trips_df.charge_type))
     charge_dict = {}
-    dcfc_frac = 1 - l2_frac
-
-    # create a distribution of charger types
-    charger_list = [7.2]* int(l2_frac*100)
-    charger_list = charger_list + [150]* int(dcfc_frac*100)
-
-    # randomly select a charger type
-    charger_type = np.random.choice(charger_list)
-    if charger_type == 7.2:
-        charge_dict.update({'HOME': 7.2})
-    if charger_type == 150:
-        charge_dict.update({'PUBLIC': 150})
+    
+    # Before adding the options to the dictionary, check if the stop type exists in the trip data
+    #  there are ranges over level 2, and DCFC are all public charging options
+    if 'single_family_home' in charge_set:
+        # all homeowners of single fam have L2
+        charge_dict.update({'single_family_home': 7.2})
+    
+    if 'multi_family_home' in charge_set:
+        # dont charge if they dont have it
+        mud_charge = np.random.choice([7.2, 0], p=[frac_multiunit_charging, 1-frac_multiunit_charging])
+        charge_dict.update({'multi_family_home': mud_charge})
+    
+    if 'office' in charge_set:
+        # use random choice to determine if worker can charge at work
+        work_charge = np.random.choice([7.2, 0], p=[frac_work_charging, 1-frac_work_charging])
+        charge_dict.update({'office': work_charge})
+    
+    if 'civic_institutional' in charge_set:
+        # use random choice to determine if worker can charge at work
+        civic_charge = np.random.choice([7.2, 0], p=[frac_civic_charging, 1-frac_civic_charging])
+        charge_dict.update({'civic_institutional': civic_charge})
+    
+    if 'public' in charge_set:
+        # use random choice to determine if worker can charge at work
+        public_charge = np.random.choice([150, 19], p=[frac_public_dcfc, 1-frac_public_dcfc])
+        charge_dict.update({'public': public_charge})
+    
+    if 'mobile' in charge_set:
+        charge_dict.update({'mobile': 0})
+    
+    if len(charge_dict) == 0:
+        charge_dict.update({'no_charge': 0})
+    
     return charge_dict
 
 def calculate_stop_duration(trips_df: pd.DataFrame) -> pd.DataFrame:
@@ -238,7 +274,7 @@ def calculate_energy_available_per_stop(trips, consumption_kWh_per_mi, charger_a
     trips['charge_opportunity_remaining_kWh'] = [
         x[0].seconds/60/60*x[1] for x in zip(trips.stop_duration, trips.charger_power_kW)
     ]
-    return trips
+    return trips, remaining_energy
 
 def create_charging_events(
     df_trips,
@@ -278,7 +314,7 @@ def create_charging_events(
     # Calculate energy available per stop
     # this is labeled as charge_opportunity_remaining_kWh since we subtract from it
     # as we charge. 
-    trips = calculate_energy_available_per_stop(trips, consumption_kWh_per_mi, charger_availability)
+    trips, remaining_energy = calculate_energy_available_per_stop(trips, consumption_kWh_per_mi, charger_availability)
 
     # Initialize count variables
     i = 0 # charger type index
@@ -291,10 +327,15 @@ def create_charging_events(
     # recharged or opportunities run out
     while (remaining_energy > 0) & (opportunities is True):
         charge_location = list(charger_availability.keys())[i]
-        
+        print(i, j, charge_location, remaining_energy, opportunities)
+    
+        print(len(trips.loc[trips.charge_type == charge_location].sort_values(by='stop_duration', ascending=False)))
         # by sorting by stop duration, we are prioritizing overnight and longer stops
         stops_sub = trips.loc[trips.charge_type == charge_location].sort_values(
             by='stop_duration', ascending=False).copy()
+        if len(stops_sub) == 0:
+            print(i, j, charge_location, remaining_energy, opportunities)
+            break
         ind = stops_sub.index[j]
         
         # charge energy is the minimum of the remaining energy and the 
@@ -545,6 +586,7 @@ def simulate_person_load(
     if len(trips_df) == 0:
         print('empty trips dataframe')
         return ({'charges': 'No trips', 'loads': 'No trips'})
+    
     # Create charge_type column from travel_purpose column
     trips_df.apply(map_charge_type, axis=1)
 

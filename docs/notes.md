@@ -24,3 +24,6 @@ the vehicle type is Heavy or Medium duty trucks.
 
 ### Counties
 * only LDV have county information from the population table. Commercial Does not. Using destinatino blockgroup to get counties associated with each person_id (trip for commercial)
+
+### Charger availability
+* need to include every charge but set the charging value to 0. 
