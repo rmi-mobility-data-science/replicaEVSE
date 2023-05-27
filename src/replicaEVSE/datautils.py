@@ -4,6 +4,7 @@ and processing data."""
 
 # import os
 import dask.dataframe as dd
+import pandas as pd
 
 def load_data(path, **kwargs):
     """Load data from a path.
@@ -111,3 +112,47 @@ def create_chunked_lists(chunk_size, person_list):
     
     lists = [person_list[x:x+chunk_size] for x in range(0,len(person_list),chunk_size)]
     return lists
+
+def sample_people_by_county(df, ev_df, fraction=0.05):
+    """ Selects a random sample of people (representing EVs) from each county.
+    These numbers come from the stock rollover model.
+
+    Args:
+        df (_type_): _description_
+        county (_type_): _description_
+        num_to_select (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    # get the unique people in the dataframe
+    unique_df = df.drop_duplicates(subset=['person_id'])[['person_id', 'destination_county']]
+
+    reduced_df = []
+    for _, cnty in ev_df.iterrows():
+        county = cnty['county']
+        num_to_select = cnty['nEV']
+        
+        # slice the unique dataframe to only include the county
+        county_df = unique_df[(unique_df['destination_county'] == county)]
+
+        # make sure we don't select more people than are in the county
+        if num_to_select > len(county_df):
+            num_to_select = len(county_df)
+            print(f'Warning: {num_to_select} people selected for {county} but only {len(county_df)} people in that {county}')
+
+        if fraction is None:
+            # unique people in that county
+            selected = county_df.person_id.sample(n=num_to_select, replace=False, random_state=42)
+        else:
+            # unique people in that county
+            selected = county_df.person_id.sample(frac=fraction, replace=False, random_state=42)
+        
+        # grab only those selected people from the original dataframe
+        cnty_df = df[(df['person_id'].isin(selected))]
+
+        # append it to the reduced dataframe
+        reduced_df.append(cnty_df)
+
+    final_df = pd.concat(reduced_df)
+    return final_df
