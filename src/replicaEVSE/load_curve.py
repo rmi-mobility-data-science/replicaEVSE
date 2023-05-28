@@ -356,6 +356,7 @@ def create_charging_events(
     # Return stop/charge info
     return (trips[[
         'activity_id',
+        'charge_type',
         'charger_power_kW',
         'stop_duration',
         'charge_energy_used_kWh',
@@ -488,7 +489,7 @@ def distribute_charge(
 
 
 
-def determine_energy_consumption(year: str=None) -> float:
+def determine_energy_consumption(efficiency: float=0.3) -> float:
     """Determines energy consumption (kWh/mi) of the vehicle associated with a given person
     Parameters
     ----------
@@ -502,8 +503,7 @@ def determine_energy_consumption(year: str=None) -> float:
     float
         Energy consumption rate (kWh/mi) of vehicle associated with a given person
     """
-    if year is None:
-        return 0.3
+    return efficiency
     
 def map_charge_type(row):
     """maps the destination to the type of charging station. Also maps the home 
@@ -540,23 +540,23 @@ def simulate_person_load(
     trips_df,
     existing_load,
     simulation_id,
-    managed
+    managed=False,
+    efficiency=0.3,
+    frac_work_charging=0.2,
+    frac_civic_charging=0.5,
+    frac_multiunit_charging=0.2,
+    frac_singleunit_charging=1.0,
+    frac_public_dcfc=0.9
 ):
     """Simulates loads for list of people
     Parameters
     ----------
-    person_ids : list
-        List of person_ids
-    database_connection : MySQL connector
-        Connection to MySQL database
-    person_columns : list
-        Column names for person data table
-    trips_columns : list
-        Column names for trips table
+    trips_df : Pandas DataFrame of trips and population data. 
+        Should already be cut down to the mode and people per county.
     existing_load : Pandas DataFrame
         Existing load data frame
     simulation_id : string
-        Identifier for simulation run
+        Identifier for simulation run. Year 
     managed : boolean
         Whether the charging is managed to reduce peak load (or for other objectives TBD)
 
@@ -592,7 +592,7 @@ def simulate_person_load(
         person_temp = pd.DataFrame()
         # Determine vehicle energy consumpsion rate in kWh/mi
         # NOTE: this is currently a dummy function = 0.3
-        vehicle_energy_consumption = determine_energy_consumption()
+        vehicle_energy_consumption = determine_energy_consumption(efficiency=efficiency)
 
         charge_dfs = []
         for i in ['thursday', 'saturday']:
@@ -604,7 +604,13 @@ def simulate_person_load(
                 trips_temp = trips_temp.loc[trips_temp['stop_duration'] > pd.to_timedelta('10 minutes')]
 
                 charger_availability = determine_charger_availability(
-                    trips_temp.loc[trips_temp.weekday == i])
+                    trips_temp.loc[trips_temp.weekday == i],
+                frac_work_charging,
+                frac_civic_charging,
+                frac_multiunit_charging,
+                frac_singleunit_charging,
+                frac_public_dcfc,
+                    )
                 charge_dfs += [
                     create_charging_events(
                         df_trips=trips_temp.loc[trips_temp.weekday == i].copy(
@@ -636,12 +642,15 @@ def simulate_person_load(
                     stop_duration=trips_temp.stop_duration.iloc[i],
                     time_window=pd.Timedelta('1 hour'),
                     charge_power=trips_temp.charger_power_kW.iloc[i],
+                    
+                    # TODO: this will always be false until we update the charge types
                     managed=managed if trips_temp.charge_type.iloc[i] in [
                         'HOME', 'WORK'] else False,
                     existing_load=existing_load.loc[existing_load.Weekday ==
                                                     weekday, 'D'].values
                 )
                 load['charge_id'] = trips_temp.charge_id.iloc[i]
+                load['charge_type'] = trips_temp.charge_type.iloc[i]
                 load['simulation_id'] = simulation_id
                 load['person_id'] = trips_temp.person_id.iloc[i]
                 load['load_segment_id'] = [
@@ -655,16 +664,11 @@ def simulate_person_load(
     load_df = pd.concat(loads_collection)
     # Return charges and loads dataframes as a dictionary
 
-    charges = trips_df[['person_id', 'charge_id', 'activity_id', 'simulation_id',
+    charges = trips_df[['person_id', 'charge_id', 'charge_type', 'activity_id', 'simulation_id',
                                   'charger_power_kW', 'charge_energy_used_kWh',
                                  'charge_opportunity_remaining_kWh']]
     
-    loads = load_df[['person_id', 'load_segment_id', 'charge_id', 'window_start_time', 'window_end_time', 'load_kW']]
-
-    #return {'charges': trips_df[['charge_id', 'activity_id', 'simulation_id',
-    #                              'charger_power_kW', 'charge_energy_used_kWh',
-    #                             'charge_opportunity_remaining_kWh']],
-    #        'loads': load_df[['load_segment_id', 'charge_id', 'window_start_time', 'window_end_time', 'load_kW']]}
+    loads = load_df[['person_id', 'load_segment_id', 'charge_id', 'charge_type', 'window_start_time', 'window_end_time', 'load_kW']]
 
     return {'charges': charges, 'loads': loads}
 
