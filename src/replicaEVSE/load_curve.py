@@ -151,6 +151,7 @@ def determine_charger_availability_tnc(df: pd.DataFrame, l2_frac: float = 0.5) -
 def determine_charger_availability(
     trips_df,
     frac_work_charging=0.2,
+    frac_non_office_charging=0.1,
     frac_civic_charging=0.5,
     frac_multiunit_charging=0.2,
     frac_singleunit_charging=1.0,
@@ -194,6 +195,11 @@ def determine_charger_availability(
         work_charge = np.random.choice([7.2, 0], p=[frac_work_charging, 1-frac_work_charging])
         charge_dict.update({'office': work_charge})
     
+    if 'non_office_work' in charge_set:
+        # use random choice to determine if worker can charge at work
+        non_office_charge = np.random.choice([7.2, 0], p=[frac_work_charging, 1-frac_work_charging])
+        charge_dict.update({'non_office_work': non_office_charge})
+    
     if 'civic_institutional' in charge_set:
         # use random choice to determine if worker can charge at work
         civic_charge = np.random.choice([7.2, 0], p=[frac_civic_charging, 1-frac_civic_charging])
@@ -204,8 +210,8 @@ def determine_charger_availability(
         public_charge = np.random.choice([150, 19], p=[frac_public_dcfc, 1-frac_public_dcfc])
         charge_dict.update({'public': public_charge})
     
-    if 'mobile' in charge_set:
-        charge_dict.update({'mobile': 0})
+    if 'mobile_home' in charge_set:
+        charge_dict.update({'mobile_home': 0})
     
     if len(charge_dict) == 0:
         charge_dict.update({'no_charge': 0})
@@ -265,10 +271,12 @@ def calculate_energy_available_per_stop(trips, consumption_kWh_per_mi, charger_a
     total_energy = total_mi*consumption_kWh_per_mi
     # Initialize total energy to consume
     remaining_energy = total_energy
+    
     # Use charge type to determine charger power available
     trips['charger_power_kW'] = [
         charger_availability[x] for x in trips.charge_type
     ]
+
     # Calculate total charge opportunity using stop duration and charger power
     # this is the total amount of energy that can be charged at each stop
     trips['charge_opportunity_remaining_kWh'] = [
@@ -543,6 +551,7 @@ def simulate_person_load(
     managed=False,
     efficiency=0.3,
     frac_work_charging=0.2,
+    frac_non_office_charging=0.1,
     frac_civic_charging=0.5,
     frac_multiunit_charging=0.2,
     frac_singleunit_charging=1.0,
@@ -580,7 +589,8 @@ def simulate_person_load(
         return ({'charges': 'No trips', 'loads': 'No trips'})
     
     # Create charge_type column from travel_purpose column
-    trips_df.apply(map_charge_type, axis=1)
+    # trips_df['charge_type'] = None
+    trips_df['charge_type'] = trips_df.apply(map_charge_type, axis=1)
 
     trips_list = []
     loads_collection = []
@@ -606,6 +616,7 @@ def simulate_person_load(
                 charger_availability = determine_charger_availability(
                     trips_temp.loc[trips_temp.weekday == i],
                 frac_work_charging,
+                frac_non_office_charging,
                 frac_civic_charging,
                 frac_multiunit_charging,
                 frac_singleunit_charging,

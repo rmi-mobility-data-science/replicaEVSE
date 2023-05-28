@@ -113,7 +113,7 @@ def create_chunked_lists(chunk_size, person_list):
     lists = [person_list[x:x+chunk_size] for x in range(0,len(person_list),chunk_size)]
     return lists
 
-def sample_people_by_county(df, ev_df, fraction=0.05):
+def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, fraction: float=0.05) -> pd.DataFrame:
     """ Selects a random sample of people (representing EVs) from each county.
     These numbers come from the stock rollover model.
 
