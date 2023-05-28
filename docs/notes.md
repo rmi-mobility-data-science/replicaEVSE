@@ -1,5 +1,11 @@
 # Notes as I explore the data
 
+## TODO:
+* add charger type to load
+* combine new county sampling before run simulation. 
+
+
+### Commercial
 * commercial travel in the trips tables have a person_id, however these person_ids are not in the population table. This is fine for PRIVATE_AUTO but will require modification of the code for COMMERCIAL trips. not a lot of modification since we barely use the population table now. We only use it to get the person_ids for people whos distination is in WA. 
 
 ### lengths of the full northwest region in millions
