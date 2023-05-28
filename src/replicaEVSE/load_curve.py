@@ -304,12 +304,6 @@ def create_charging_events(
     
     # Note: make home overnight charging priority in the future
     trips = trips_dummy.sort_values(by='start_time')
-    
-    # Calculate stop duration
-    trips = calculate_stop_duration(trips)
-    
-    # limit to stops > 10 mins
-    trips = trips.loc[trips['stop_duration'] > pd.to_timedelta('10 minutes')]
 
     # Calculate energy available per stop
     # this is labeled as charge_opportunity_remaining_kWh since we subtract from it
@@ -321,20 +315,18 @@ def create_charging_events(
     j = 0 # stop index
     
     opportunities = True
-
     # Note: charge priority favors longest stops first
     # Allocate charge energy across available charge opportunities until all energy is
     # recharged or opportunities run out
     while (remaining_energy > 0) & (opportunities is True):
         charge_location = list(charger_availability.keys())[i]
-        print(i, j, charge_location, remaining_energy, opportunities)
-    
-        print(len(trips.loc[trips.charge_type == charge_location].sort_values(by='stop_duration', ascending=False)))
+
         # by sorting by stop duration, we are prioritizing overnight and longer stops
         stops_sub = trips.loc[trips.charge_type == charge_location].sort_values(
             by='stop_duration', ascending=False).copy()
         if len(stops_sub) == 0:
             print(i, j, charge_location, remaining_energy, opportunities)
+
             break
         ind = stops_sub.index[j]
         
@@ -578,10 +570,10 @@ def simulate_person_load(
 
     # if using private auto, need to remove mobile home owners before you pass them
     # into this function. 
-    if (trips_df['mode'] == 'PRIVATE_AUTO').any():
-        if len(trips_df = trips_df.loc[trips_df['building_type'] == 'mobile']) > 0:
-            print('you need to remove the "building_type" == "mobile"')
-            assert False
+    #if (trips_df['mode'] == 'PRIVATE_AUTO').any():
+    #    if len(trips_df = trips_df.loc[trips_df['building_type'] == 'mobile']) > 0:
+    #        print('you need to remove the "building_type" == "mobile"')
+    #        assert False
     
     if len(trips_df) == 0:
         print('empty trips dataframe')
@@ -600,23 +592,25 @@ def simulate_person_load(
         person_temp = pd.DataFrame()
         # Determine vehicle energy consumpsion rate in kWh/mi
         # NOTE: this is currently a dummy function = 0.3
-        vehicle_energy_consumption = determine_energy_consumption(
-            person_temp, trips_temp)
+        vehicle_energy_consumption = determine_energy_consumption()
 
         charge_dfs = []
         for i in ['thursday', 'saturday']:
             if len(trips_temp.loc[trips_temp.weekday == i]) > 0:
                 # For each day (thursday and saturday), get charger availability for person j
                 # and determine which stopping events will result in charges
-                charger_availability = determine_charger_availability_ldv(
-                    person_temp, trips_temp.loc[trips_temp.weekday == i])
+
+                trips_temp = calculate_stop_duration(trips_temp)
+                trips_temp = trips_temp.loc[trips_temp['stop_duration'] > pd.to_timedelta('10 minutes')]
+
+                charger_availability = determine_charger_availability(
+                    trips_temp.loc[trips_temp.weekday == i])
                 charge_dfs += [
                     create_charging_events(
                         df_trips=trips_temp.loc[trips_temp.weekday == i].copy(
                         ),
                         charger_availability=charger_availability,
                         consumption_kWh_per_mi=vehicle_energy_consumption,
-                        weekday=i
                     )
                 ]
         # Concatenate results from the two days together
