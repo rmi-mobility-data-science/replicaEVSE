@@ -452,9 +452,6 @@ def distribute_charge(
                     'window_end_time',
                      'load_kW']])
 
-
-
-
 def determine_energy_consumption(person_df, trips_df):
     # Notes
     # This is currently a dummy function. The person/trip data should be used to determine what the vehicle type is, and what the energy consumption per mile should be
@@ -576,6 +573,8 @@ def simulate_person_load(
                 load['charge_id'] = trips_temp.charge_id.iloc[i]
                 load['simulation_id'] = simulation_id
                 load['person_id'] = trips_temp.person_id.iloc[i]
+                #get bgrp origin
+                #get bgrp destination
                 load['load_segment_id'] = [
                     x[0]+'_'+str(x[1]) for x in zip(load.charge_id, load.index)]
                 load_list += [load]
@@ -592,6 +591,166 @@ def simulate_person_load(
                                  'charge_opportunity_remaining_kWh']]
     
     loads = load_df[['person_id', 'load_segment_id', 'charge_id', 'window_start_time', 'window_end_time', 'load_kW']]
+
+    #return {'charges': trips_df[['charge_id', 'activity_id', 'simulation_id',
+    #                              'charger_power_kW', 'charge_energy_used_kWh',
+    #                             'charge_opportunity_remaining_kWh']],
+    #        'loads': load_df[['load_segment_id', 'charge_id', 'window_start_time', 'window_end_time', 'load_kW']]}
+
+    return {'charges': charges, 'loads': loads}
+
+
+#Modify efficiency for trucks kwh/mi
+#freightliner = 438/220
+#volvo = 565/275
+#nikola = 733/330
+#peterbilt= 440/200
+#tesla = 800/500
+
+def determine_energy_consumption_commercial(person_df, trips_df):
+    # Notes
+    # This is currently a dummy function. The person/trip data should be used to determine what the vehicle type is, and what the energy consumption per mile should be
+    """Determines energy consumption (kWh/mi) of the vehicle associated with a given person
+    Parameters
+    ----------
+    person_df : pandas DataFrame
+        Person data for one individual
+    trips_df : pandas DataFrame
+        Trip data for one individual
+
+    Returns
+    -------
+    float
+        Energy consumption rate (kWh/mi) of vehicle associated with a given person
+    """
+    dummy = person_df
+    dummy = trips_df
+    return 2.0
+
+def simulate_person_load_commercial(
+    trips_df,
+    existing_load,
+    simulation_id,
+    managed
+):
+    """Simulates loads for list of people
+    Parameters
+    ----------
+    person_ids : list
+        List of person_ids
+    database_connection : MySQL connector
+        Connection to MySQL database
+    person_columns : list
+        Column names for person data table
+    trips_columns : list
+        Column names for trips table
+    existing_load : Pandas DataFrame
+        Existing load data frame
+    simulation_id : string
+        Identifier for simulation run
+    managed : boolean
+        Whether the charging is managed to reduce peak load (or for other objectives TBD)
+
+    Returns
+    -------
+    dictionary
+        Dictionary of dataframes:
+            "charges" dataframe in which each row is a charge
+            "loads" dataframe in which each row is a time window
+    """
+
+    # Take subset of trips using private autos as candidates for charging
+    # trips_df = df.loc[df['mode'] == 'PRIVATE_AUTO'].copy()
+    if len(trips_df) == 0:
+        return ({'charges': 'No trips', 'loads': 'No trips'})
+    # Create charge_type column from travel_purpose column
+    trips_df['charge_type'] = trips_df.travel_purpose.copy()
+    trips_df.loc[trips_df.charge_type.isin(
+        ['WORK', 'HOME']) == False, 'charge_type'] = 'PUBLIC'
+
+    trips_list = []
+    loads_collection = []
+    for j in list(set(trips_df.person_id)):
+        # Get the subset of trips made by person j
+        trips_temp = trips_df.loc[trips_df.person_id == j].copy()
+        # Get the person data for person j
+        # person_temp = persons_df.loc[persons_df.person_id == j].copy()
+        person_temp = pd.DataFrame()
+        # Determine vehicle energy consumpsion rate in kWh/mi
+        # NOTE: this is currently a dummy function = 0.3
+        vehicle_energy_consumption = determine_energy_consumption_commercial(
+            person_temp, trips_temp)
+
+        charge_dfs = []
+        for i in ['thursday', 'saturday']:
+            if len(trips_temp.loc[trips_temp.weekday == i]) > 0:
+                # For each day (thursday and saturday), get charger availability for person j
+                # and determine which stopping events will result in charges
+                charger_availability = determine_charger_availability(
+                    person_temp, trips_temp.loc[trips_temp.weekday == i])
+                charge_dfs += [
+                    create_charging_events(
+                        df_trips=trips_temp.loc[trips_temp.weekday == i].copy(
+                        ),
+                        charger_availability=charger_availability,
+                        consumption_kWh_per_mi=vehicle_energy_consumption,
+                        weekday=i
+                    )
+                ]
+        # Concatenate results from the two days together
+        charge_df = pd.concat(charge_dfs)
+        charge_df['simulation_id'] = simulation_id
+        # Create a unique ID for each charge
+        charge_df['charge_id'] = [x[0]+'_'+x[1]
+                                  for x in zip(charge_df.activity_id, charge_df.simulation_id)]
+        charge_df['person_id'] = j
+        # Merge charge data with trips data
+        trips_temp = trips_temp.merge(charge_df)
+        # #Create list of empty lists to fill with load data
+        # trips_temp['Load']=[[]]*len(trips_temp)
+
+        load_list = []
+        for i in range(0, len(trips_temp)):
+            # For each charge, distribute the load through time and the resulting df to the load df
+            if trips_temp.charge_energy_used_kWh.iloc[i] > 0:
+                weekday = trips_temp.weekday.iloc[i]
+                load = distribute_charge(
+                    charge_demand=trips_temp.charge_energy_used_kWh.iloc[i],
+                    stop_time=trips_temp.end_time.iloc[i],
+                    stop_duration=trips_temp.stop_duration.iloc[i],
+                    time_window=pd.Timedelta('1 hour'),
+                    charge_power=trips_temp.charger_power_kW.iloc[i],
+                    managed=managed if trips_temp.charge_type.iloc[i] in [
+                        'HOME', 'WORK'] else False,
+                    existing_load=existing_load.loc[existing_load.Weekday ==
+                                                    weekday, 'D'].values
+                )
+                load['charge_id'] = trips_temp.charge_id.iloc[i]
+                load['simulation_id'] = simulation_id
+                load['person_id'] = trips_temp.person_id.iloc[i]
+                
+                #add block groups
+                load['origin_bgrp'] = trips_temp.origin_bgrp.iloc[i]
+                load['destination_bgrp'] = trips_temp.destination_bgrp.iloc[i]
+                
+                #need to get bgrps somewhere
+                
+                load['load_segment_id'] = [
+                    x[0]+'_'+str(x[1]) for x in zip(load.charge_id, load.index)]
+                load_list += [load]
+        if len(load_list) > 0:
+            loads_collection += [pd.concat(load_list)]
+            trips_list += [trips_temp]
+
+    trips_df = pd.concat(trips_list)
+    load_df = pd.concat(loads_collection)
+    # Return charges and loads dataframes as a dictionary
+
+    charges = trips_df[['person_id', 'charge_id', 'activity_id', 'simulation_id',
+                                  'charger_power_kW', 'charge_energy_used_kWh',
+                                 'charge_opportunity_remaining_kWh']]
+    
+    loads = load_df[['person_id', 'load_segment_id', 'charge_id', 'window_start_time', 'window_end_time', 'load_kW', 'origin_bgrp', 'destination_bgrp']]
 
     #return {'charges': trips_df[['charge_id', 'activity_id', 'simulation_id',
     #                              'charger_power_kW', 'charge_energy_used_kWh',
