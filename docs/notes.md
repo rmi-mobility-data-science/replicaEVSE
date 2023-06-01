@@ -1,8 +1,19 @@
 # Notes as I explore the data
 
 ## TODO:
-* add charger type to load
-* combine new county sampling before run simulation. 
+* run TNC simuluation -> load_curves
+    - only change is public/home l2 logic
+* make script to automate the ldv load curves: 
+    - sedan, crossover, trucks
+    - single, multi-unit
+    - does this need anything more than efficiency inputs? make a test?
+* loop the years and outputs so we can get this done as fast as possible
+* streamline the charges/load outputs squeeze out loadcurves 
+(0-24, vs load_kW) then use stackplot to add them together. 
+* get matt to figure out charging numbers
+
+
+
 
 
 ### Commercial
@@ -33,3 +44,4 @@ the vehicle type is Heavy or Medium duty trucks.
 
 ### Charger availability
 * need to include every charge but set the charging value to 0. 
+
