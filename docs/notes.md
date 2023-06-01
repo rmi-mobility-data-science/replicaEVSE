@@ -1,6 +1,16 @@
 # Notes as I explore the data
 
 ## TODO:
+* ~~get matt the ratios~~
+
+* find commit where there was a large plot
+
+* Summary statistic X% of charging takes place at home, Y% charges public Z% charges at work. Use charge_id and wrap all work together.
+
+* rewrite load curve plotting code to take in load curves and then try `plt.stackplot(hour, [...])`
+
+* make a couple load curves of blockgroups that look different. 
+
 * run TNC simuluation -> load_curves
     - only change is public/home l2 logic
 * make script to automate the ldv load curves: 
@@ -11,9 +21,6 @@
 * streamline the charges/load outputs squeeze out loadcurves 
 (0-24, vs load_kW) then use stackplot to add them together. 
 * get matt to figure out charging numbers
-
-
-
 
 
 ### Commercial
