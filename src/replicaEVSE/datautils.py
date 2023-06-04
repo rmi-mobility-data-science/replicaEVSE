@@ -113,7 +113,7 @@ def create_chunked_lists(chunk_size, person_list):
     lists = [person_list[x:x+chunk_size] for x in range(0,len(person_list),chunk_size)]
     return lists
 
-def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, fraction: float=0.05) -> pd.DataFrame:
+def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, year: str, fraction: float=0.05) -> pd.DataFrame:
     """ Selects a random sample of people (representing EVs) from each county.
     These numbers come from the stock rollover model.
 
@@ -127,14 +127,15 @@ def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, fraction: flo
     """
     # get the unique people in the dataframe
     unique_df = df.drop_duplicates(subset=['person_id'])[['person_id', 'destination_county']]
-
+    year = str(year)
     reduced_df = []
     for _, cnty in ev_df.iterrows():
-        county = cnty['county']
-        num_to_select = cnty['nEV']
+        county = cnty['County']
+        num_to_select = cnty[year]
+        domicile = cnty['domicile']
         
         # slice the unique dataframe to only include the county
-        county_df = unique_df[(unique_df['destination_county'] == county)]
+        county_df = unique_df[(unique_df['destination_county'].str.contains(county))]
 
         # make sure we don't select more people than are in the county
         if num_to_select > len(county_df):
@@ -142,6 +143,14 @@ def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, fraction: flo
             print(f'Warning: {num_to_select} people selected for {county} but only {len(county_df)} people in that {county}')
 
         if fraction is None:
+            if domicile == 'sfh':
+                county_df = county_df[county_df['building_type'] == 'single_family']
+            elif domicile == 'mfh':
+                county_df = county_df[county_df['building_type'] != 'single_family']
+            else:
+                print("Warning: domicile not recognized. Investigate the input df.")
+
+            selected = county_df.person_id.sample(n=num_to_select, replace=False, random_state=42)
             # unique people in that county
             selected = county_df.person_id.sample(n=num_to_select, replace=False, random_state=42)
         else:
