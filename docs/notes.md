@@ -1,26 +1,31 @@
 # Notes as I explore the data
 
 ## TODO:
+* gut check: vmt vs efficiency to get total power needed. 
+
 * ~~get matt the ratios~~
 
 * find commit where there was a large plot
 
-* Summary statistic X% of charging takes place at home, Y% charges public Z% charges at work. Use charge_id and wrap all work together.
+* ~~Summary statistic X% of charging takes place at home, Y% charges public Z% charges at work. Use charge_id and wrap all work together.~~
 
-* rewrite load curve plotting code to take in load curves and then try `plt.stackplot(hour, [...])`
+* ~~Add CommercialL: rewrite load curve plotting code to take in load curves and then try `plt.stackplot(hour, [...])`~~
 
 * make a couple load curves of blockgroups that look different. 
 
 * run TNC simuluation -> load_curves
     - only change is public/home l2 logic
-* make script to automate the ldv load curves: 
+
+* run PHEV using logic in the sharepoint file.
+
+* check on the charging and making sure we arent missing charging events. Try only adding chargin times when they start and not making 24 windows. 
+
+* make script to automate the load curves: 
     - sedan, crossover, trucks
     - single, multi-unit
-    - does this need anything more than efficiency inputs? make a test?
+    - commercial, private
 * loop the years and outputs so we can get this done as fast as possible
-* streamline the charges/load outputs squeeze out loadcurves 
-(0-24, vs load_kW) then use stackplot to add them together. 
-* get matt to figure out charging numbers
+* ~~get matt to figure out charging numbers~~
 
 
 ### Commercial
