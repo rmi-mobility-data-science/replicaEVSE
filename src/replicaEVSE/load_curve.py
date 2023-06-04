@@ -601,8 +601,7 @@ def simulate_person_load(
         # person_temp = persons_df.loc[persons_df.person_id == j].copy()
         person_temp = pd.DataFrame()
         # Determine vehicle energy consumpsion rate in kWh/mi
-        # NOTE: this is currently a dummy function = 0.3
-        vehicle_energy_consumption = determine_energy_consumption(efficiency=efficiency)
+        vehicle_energy_consumption = efficiency
 
         charge_dfs = []
         for i in ['thursday', 'saturday']:
