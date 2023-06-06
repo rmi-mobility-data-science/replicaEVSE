@@ -197,7 +197,7 @@ def determine_charger_availability(
     
     if 'non_office_work' in charge_set:
         # use random choice to determine if worker can charge at work
-        non_office_charge = np.random.choice([7.2, 0], p=[frac_work_charging, 1-frac_work_charging])
+        non_office_charge = np.random.choice([7.2, 0], p=[frac_non_office_charging, 1-frac_non_office_charging])
         charge_dict.update({'non_office_work': non_office_charge})
     
     if 'civic_institutional' in charge_set:
