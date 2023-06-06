@@ -676,9 +676,9 @@ def simulate_person_load(
 
     charges = trips_df[['person_id', 'charge_id', 'charge_type', 'activity_id', 'simulation_id',
                                   'charger_power_kW', 'charge_energy_used_kWh',
-                                 'charge_opportunity_remaining_kWh']]
+                                 'charge_opportunity_remaining_kWh', 'weekday']]
     
-    loads = load_df[['person_id', 'load_segment_id', 'charge_id', 'charge_type', 'window_start_time', 'window_end_time', 'load_kW']]
+    loads = load_df[['person_id', 'load_segment_id', 'charge_id', 'charge_type', 'window_start_time', 'window_end_time', 'load_kW', 'weekday']]
 
     return {'charges': charges, 'loads': loads}
 
