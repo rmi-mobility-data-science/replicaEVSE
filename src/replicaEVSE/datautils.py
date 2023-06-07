@@ -126,33 +126,33 @@ def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, year: str, fr
         _type_: _description_
     """
     # get the unique people in the dataframe
-    unique_df = df.drop_duplicates(subset=['person_id'])[['person_id', 'destination_county']]
+    unique_df = df.drop_duplicates(subset=['person_id'])[['person_id', 'destination_county', 'building_type']]
     year = str(year)
     reduced_df = []
     for _, cnty in ev_df.iterrows():
         county = cnty['County']
         num_to_select = cnty[year]
         domicile = cnty['domicile']
+        print(num_to_select, county, domicile)
         
         # slice the unique dataframe to only include the county
         county_df = unique_df[(unique_df['destination_county'].str.contains(county))]
 
         # make sure we don't select more people than are in the county
-        if num_to_select > len(county_df):
-            num_to_select = len(county_df)
-            print(f'Warning: {num_to_select} people selected for {county} but only {len(county_df)} people in that {county}')
+        #if num_to_select > len(county_df):
+        #    num_to_select = len(county_df)
+        print(f'Warning: {num_to_select} people selected for {county} but only {len(county_df)} people in {county}')
 
         if fraction is None:
             if domicile == 'sfh':
-                county_df = county_df[county_df['building_type'] == 'single_family']
+                county_df_sub = county_df[county_df['building_type'] == 'single_family']
             elif domicile == 'mfh':
-                county_df = county_df[county_df['building_type'] != 'single_family']
+                county_df_sub = county_df[county_df['building_type'] != 'single_family']
             else:
                 print("Warning: domicile not recognized. Investigate the input df.")
-
-            selected = county_df.person_id.sample(n=num_to_select, replace=False, random_state=42)
             # unique people in that county
-            selected = county_df.person_id.sample(n=num_to_select, replace=False, random_state=42)
+            print(num_to_select, len(county_df_sub))
+            selected = county_df_sub.person_id.sample(n=num_to_select, replace=False, random_state=42)
         else:
             # unique people in that county
             selected = county_df.person_id.sample(frac=fraction, replace=False, random_state=42)
