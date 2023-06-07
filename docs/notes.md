@@ -2,12 +2,19 @@
 
 ## TODO:
 * gut check: vmt vs efficiency to get total power needed. 
+    - run on state wide values
+    - could be in the merge, don't need that now.
 
-* ~~get matt the ratios~~
+* rerun the model with updated stock data from Gerard. 
+    - needs to be uploaded from Downloads
+    - bug idea: shared users between segments?
+
+* run PHEV using logic in the sharepoint file.
 
 * find commit where there was a large plot
+    - see this: https://stackoverflow.com/questions/10622179/how-to-find-identify-large-commits-in-git-history
 
-* ~~Summary statistic X% of charging takes place at home, Y% charges public Z% charges at work. Use charge_id and wrap all work together.~~
+* Update this: Summary statistic X% of charging takes place at home, Y% charges public Z% charges at work. Use charge_id and wrap all work together. 
 
 * ~~Add CommercialL: rewrite load curve plotting code to take in load curves and then try `plt.stackplot(hour, [...])`~~
 
@@ -16,14 +23,9 @@
 * run TNC simuluation -> load_curves
     - only change is public/home l2 logic
 
-* run PHEV using logic in the sharepoint file.
-
 * check on the charging and making sure we arent missing charging events. Try only adding chargin times when they start and not making 24 windows. 
 
-* make script to automate the load curves: 
-    - sedan, crossover, trucks
-    - single, multi-unit
-    - commercial, private
+
 * loop the years and outputs so we can get this done as fast as possible
 * ~~get matt to figure out charging numbers~~
 
