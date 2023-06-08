@@ -16,6 +16,8 @@
 
 * Update this: Summary statistic X% of charging takes place at home, Y% charges public Z% charges at work. Use charge_id and wrap all work together. 
 
+* Fill out the assumptions
+
 * ~~Add CommercialL: rewrite load curve plotting code to take in load curves and then try `plt.stackplot(hour, [...])`~~
 
 * make a couple load curves of blockgroups that look different. 
