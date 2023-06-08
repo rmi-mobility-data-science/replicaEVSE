@@ -141,7 +141,7 @@ def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, year: str, fr
         # make sure we don't select more people than are in the county
         #if num_to_select > len(county_df):
         #    num_to_select = len(county_df)
-        print(f'Warning: {num_to_select} people selected for {county} but only {len(county_df)} people in {county}')
+        # print(f'Warning: {num_to_select} people selected for {county} but only {len(county_df)} people in {county}')
 
         if fraction is None:
             if domicile == 'sfh':
