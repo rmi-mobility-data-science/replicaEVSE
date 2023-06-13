@@ -53,6 +53,8 @@ nev_df.drop(columns=['Unnamed: 0'], inplace=True)
 
 for year in np.arange(2022, 2036, 1):
     segment_persons = []
+
+    # TODO: dont need to loop over this in the future. 
     for segment in personal+commercial:
         seg_string = segment.replace(" ", "_").lower().replace("/suv", "")
         simulation_id = f'{seg_string}_{str(year)}'
