@@ -61,9 +61,9 @@ for year in np.arange(2022, 2036, 1):
         eff = segment_efficiency(segment)
 
         print(eff)
-        nev_df = stock_rollover[stock_rollover['Powertrain']=='EV'].copy()
+        # nev_df = stock_rollover[stock_rollover['Powertrain']=='EV'].copy()
         nev_df_seg = nev_df[nev_df['Vehicle_type']==segment].copy()
-        
+    
         
         # we dont want to include the same people in multiple segments.
         # this results in not enough people in some small counties...
