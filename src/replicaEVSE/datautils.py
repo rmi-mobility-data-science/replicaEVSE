@@ -126,17 +126,29 @@ def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, year: str, fr
         _type_: _description_
     """
     # get the unique people in the dataframe
-    unique_df = df.drop_duplicates(subset=['person_id'])[['person_id', 'destination_county', 'building_type']]
+    pop_df = df.drop_duplicates(subset=['person_id'])[['person_id', 'destination_county', 'building_type']]
+
+
+
     year = str(year)
     reduced_df = []
-    for _, cnty in ev_df.iterrows():
+    for row_indexer, cnty in ev_df.iterrows():
+
+        
         county = cnty['County']
         num_to_select = cnty[year]
         domicile = cnty['domicile']
-        print(num_to_select, county, domicile)
+        segment = cnty['Vehicle_type']
+        engine = cnty['Powertrain']
+        print(num_to_select, county, domicile, segment, engine)
+        
+        # there are negative numbers of vehicles?
+        if num_to_select <= 0:
+            num_to_select = 0
         
         # slice the unique dataframe to only include the county
-        county_df = unique_df[(unique_df['destination_county'].str.contains(county))]
+        county_str = county +  ' County, WA'
+        county_df = pop_df[pop_df['destination_county'] == county_str]
 
         # make sure we don't select more people than are in the county
         #if num_to_select > len(county_df):
@@ -151,19 +163,24 @@ def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, year: str, fr
             else:
                 print("Warning: domicile not recognized. Investigate the input df.")
             # unique people in that county
-            print(num_to_select, len(county_df_sub))
             selected = county_df_sub.person_id.sample(n=num_to_select, replace=False, random_state=42)
         else:
             # unique people in that county
             selected = county_df.person_id.sample(frac=fraction, replace=False, random_state=42)
         
         # grab only those selected people from the original dataframe
-        cnty_df = df[(df['person_id'].isin(selected))]
+        cnty_df = df[(df['person_id'].isin(selected))].copy()
+
+        # add the county, segment, and engine to the dataframe
+        cnty_df.loc[row_indexer, 'engine'] = engine
+        cnty_df.loc[row_indexer, 'segment'] = segment# .lower().replace(' ', '_').replace('/', '_')
 
         # append it to the reduced dataframe
         reduced_df.append(cnty_df)
 
     final_df = pd.concat(reduced_df)
+
+    
     return final_df
 
 def map_charge_type(row):
