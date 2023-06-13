@@ -6,3 +6,11 @@
 
 3. We consider everyone whos desitination 
 
+
+
+### Changes to model
+if public:
+    if dwell time < 60(?) mins, 
+        80% DCFC coin toss
+    else:
+        80% L2
