@@ -71,9 +71,10 @@ existing_load=pd.read_csv(datadir+'EIA_demand_summary.csv')
 simulation_id = f'by_year_{str(year)}'
 charge_df_list = []
 loads_df_list = []
-workfrac_arr = np.linspace(0.2, 0.6, 4)
-multiunitfrac_arr = np.linspace(0.2, 0.6, 4)
 years = [2023, 2025, 2030, 2035]
+workfrac_arr = np.linspace(0.2, 0.6, len(years))
+multiunitfrac_arr = np.linspace(0.2, 0.6, len(years))
+
 
 for year, workfrac, multiunitfrac  in zip(years, workfrac_arr, multiunitfrac_arr):
     charge_df_seg_list = []
@@ -91,7 +92,7 @@ for year, workfrac, multiunitfrac  in zip(years, workfrac_arr, multiunitfrac_arr
     efficiency=0.3,
     frac_work_charging=workfrac,
     frac_non_office_charging=0.1,
-    frac_civic_charging=0.5,
+    frac_civic_charging=workfrac,
     frac_multiunit_charging=multiunitfrac,
     frac_singleunit_charging=1.0,
     frac_public_dcfc=0.9) 
