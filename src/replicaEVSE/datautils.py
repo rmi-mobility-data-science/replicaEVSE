@@ -5,6 +5,7 @@ and processing data."""
 # import os
 import dask.dataframe as dd
 import pandas as pd
+import os
 
 def load_data(path, **kwargs):
     """Load data from a path.
@@ -113,6 +114,44 @@ def create_chunked_lists(chunk_size, person_list):
     lists = [person_list[x:x+chunk_size] for x in range(0,len(person_list),chunk_size)]
     return lists
 
+
+def segment_efficiency(segment):
+    """This simply returns the expected efficiency (kwh/mi) for a given segment.
+    It is quite simple now but could be expanded to include more complex
+    efficiency calculations over the years.
+
+    Args:
+        segment (str): The segment of the vehicle
+
+    Returns:
+        float: efficiency in kWh/mile
+    """
+
+    # get the efficiency for the segment
+    if "Sedan" in segment:
+        eff = 0.25
+    elif "Crossover" in segment:
+        eff = 0.30
+    elif 'Truck' in segment:
+        eff = 0.49
+    else:
+        print('no match')
+    return eff
+
+def phev_efficiency_milage(df, engine):
+    """This function returns the efficiency of a PHEV based on the
+    number of miles driven on electricity. The efficiency set at 0.9 kWh/mile
+    for now. We also change the milage for these users. 
+
+    Args:
+        df (pd.DataFrame): row of the dataframe
+        engine (str): engine type, PHEV or EV
+    """
+    if engine == 'PHEV':
+        df['distance_miles'] = df['distance_miles'] * 0.55
+        df['efficiency'] = 0.9
+    return df
+
 def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, year: str, fraction: float=0.05) -> pd.DataFrame:
     """ Selects a random sample of people (representing EVs) from each county.
     These numbers come from the stock rollover model.
@@ -129,10 +168,10 @@ def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, year: str, fr
     pop_df = df.drop_duplicates(subset=['person_id'])[['person_id', 'destination_county', 'building_type']]
 
 
-
     year = str(year)
     reduced_df = []
-    for row_indexer, cnty in ev_df.iterrows():
+    print(f"Selecting people from each county in year={year}...14 mins per year")
+    for row_idx, cnty in ev_df.iterrows():
 
         
         county = cnty['County']
@@ -140,7 +179,7 @@ def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, year: str, fr
         domicile = cnty['domicile']
         segment = cnty['Vehicle_type']
         engine = cnty['Powertrain']
-        print(num_to_select, county, domicile, segment, engine)
+        # print(num_to_select, county, domicile, segment, engine)
         
         # there are negative numbers of vehicles?
         if num_to_select <= 0:
@@ -172,16 +211,35 @@ def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, year: str, fr
         cnty_df = df[(df['person_id'].isin(selected))].copy()
 
         # add the county, segment, and engine to the dataframe
-        cnty_df.loc[row_indexer, 'engine'] = engine
-        cnty_df.loc[row_indexer, 'segment'] = segment# .lower().replace(' ', '_').replace('/', '_')
+        cnty_df['engine'] = engine
+        cnty_df['segment'] = segment # .lower().replace(' ', '_').replace('/', '_')
+        cnty_df['efficiency'] = segment_efficiency(segment)
+        cnty_df['year'] = year
+        
+        # if it is a PHEV, we need to change the efficiency and milage
+        cnty_df = phev_efficiency_milage(cnty_df, engine)
 
         # append it to the reduced dataframe
         reduced_df.append(cnty_df)
 
     final_df = pd.concat(reduced_df)
 
-    
     return final_df
+
+def run_and_save_sampled_populations(df, nev_df, year, datadir='../../data/'):
+    """Run the county sampler for a given year from the output of the stock rollover
+    model and save the year-on-year outputs.
+
+    Args:
+        df (DataFrame): Full trips dataframe
+        nev_df (DataFrame): Output of the stock rollover model
+        year (int): year to sample
+        datadir (_type_): _description_
+        
+    """
+    simulation_id = f'{str(year)}'
+    df_county_subset = sample_people_by_county(df, nev_df, year=year)
+    df_county_subset.to_parquet(os.path.join(datadir, f'county_samples/county_sample_{simulation_id}.parquet'))
 
 def map_charge_type(row):
     """maps the destination to the type of charging station. Also maps the home 
@@ -213,3 +271,5 @@ def map_charge_type(row):
             return 'non_office_work'
     else:
         return 'public'
+
+    
