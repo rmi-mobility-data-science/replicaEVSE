@@ -21,7 +21,7 @@
 
 * Update this: Summary statistic X% of charging takes place at home, Y% charges public Z% charges at work. Use charge_id and wrap all work together. 
 
-* Fill out the assumptions
+* Fill out the assumptions with code
 
 * ~~Add CommercialL: rewrite load curve plotting code to take in load curves and then try `plt.stackplot(hour, [...])`~~
 
@@ -38,11 +38,11 @@
 ---
 
 ### Changes to model based on dwell time
-if public:
-    if dwell time < 60(?) mins, 
-        80% DCFC bimonial
-    else:
-        80% L2
+    if public:
+        if dwell time < 60(?) mins, 
+            80% DCFC bimonial
+        else:
+            80% L2
 
 ---
 
