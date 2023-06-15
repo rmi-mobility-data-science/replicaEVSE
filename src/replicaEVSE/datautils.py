@@ -7,6 +7,7 @@ import dask.dataframe as dd
 import pandas as pd
 import os
 
+
 def load_data(path, **kwargs):
     """Load data from a path.
     Parameters
@@ -22,6 +23,7 @@ def load_data(path, **kwargs):
     """
     return dd.read_csv(path, dtype=str, **kwargs)
 
+
 def clean_pop_data(pop_df):
     """There are some issues with the data
     where there are headers scattered throughout th
@@ -36,21 +38,21 @@ def clean_pop_data(pop_df):
     """
     pop_df = pop_df[pop_df.person_id != 'person_id']
     dtype_dict = {
-              'age': int,
-              'person_id': str,
-              'household_id': str,
-              'BLOCKGROUP': str,
-              'BLOCKGROUP_work': str,
-              'BLOCKGROUP_school': str,
-              'lat': float,
-              'lng': float,
-              'lat_work': float, 
-              'lng_work': float,
-              'lat_school': float,
-              'lng_school': float,      
-              'household_income': float,
-              'individual_income': float      
-              }
+        'age': int,
+        'person_id': str,
+        'household_id': str,
+        'BLOCKGROUP': str,
+        'BLOCKGROUP_work': str,
+        'BLOCKGROUP_school': str,
+        'lat': float,
+        'lng': float,
+        'lat_work': float,
+        'lng_work': float,
+        'lat_school': float,
+        'lng_school': float,
+        'household_income': float,
+        'individual_income': float
+    }
     for col in pop_df.columns:
         if col not in dtype_dict.keys():
             dtype_dict[col] = str
@@ -58,6 +60,7 @@ def clean_pop_data(pop_df):
     pop_df = pop_df.astype(dtype_dict)
     pop_df.set_index('person_id')
     return pop_df
+
 
 def clean_trip_data(trip_df):
     trip_df = trip_df[trip_df.person_id != 'person_id']
@@ -67,7 +70,7 @@ def clean_trip_data(trip_df):
             trip_dict[col] = str
         if col in ['start_time', 'end_time']:
             trip_dict[col] = 'timedelta64[ns]'
-        
+
         elif col == 'distance_miles':
             trip_dict[col] = float
         elif 'lat' in col:
@@ -79,6 +82,7 @@ def clean_trip_data(trip_df):
     trip_df = trip_df.astype(trip_dict)
     trip_df.set_index('person_id')
     return trip_df
+
 
 def save_as_parquet(path, clean=True):
     """Save data as a parquet file.
@@ -96,6 +100,7 @@ def save_as_parquet(path, clean=True):
     df.to_parquet(path)
     return df
 
+
 def create_chunked_lists(chunk_size, person_list):
     """Creates list of person_id lists of a given chunk_size for parallelizing simulation
     Parameters
@@ -110,8 +115,9 @@ def create_chunked_lists(chunk_size, person_list):
     list
         List of lists of person ids
     """
-    
-    lists = [person_list[x:x+chunk_size] for x in range(0,len(person_list),chunk_size)]
+
+    lists = [person_list[x:x+chunk_size]
+             for x in range(0, len(person_list), chunk_size)]
     return lists
 
 
@@ -138,6 +144,7 @@ def segment_efficiency(segment):
         print('no match')
     return eff
 
+
 def phev_efficiency_milage(df, engine):
     """This function returns the efficiency of a PHEV based on the
     number of miles driven on electricity. The efficiency set at 0.9 kWh/mile
@@ -152,7 +159,8 @@ def phev_efficiency_milage(df, engine):
         df['efficiency'] = 0.9
     return df
 
-def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, year: str, fraction: float=0.05) -> pd.DataFrame:
+
+def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, year: str, fraction: float = 0.05) -> pd.DataFrame:
     """ Selects a random sample of people (representing EVs) from each county.
     These numbers come from the stock rollover model.
 
@@ -165,57 +173,62 @@ def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, year: str, fr
         _type_: _description_
     """
     # get the unique people in the dataframe
-    pop_df = df.drop_duplicates(subset=['person_id'])[['person_id', 'destination_county', 'building_type']]
-
+    pop_df = df.drop_duplicates(subset=['person_id'])[
+        ['person_id', 'destination_county', 'building_type']]
 
     year = str(year)
     reduced_df = []
-    print(f"Selecting people from each county in year={year}...14 mins per year")
+    print(
+        f"Selecting people from each county in year={year}...14 mins per year")
     for row_idx, cnty in ev_df.iterrows():
 
-        
         county = cnty['County']
         num_to_select = cnty[year]
         domicile = cnty['domicile']
         segment = cnty['Vehicle_type']
         engine = cnty['Powertrain']
         # print(num_to_select, county, domicile, segment, engine)
-        
+
         # there are negative numbers of vehicles?
         if num_to_select <= 0:
             num_to_select = 0
-        
+
         # slice the unique dataframe to only include the county
-        county_str = county +  ' County, WA'
+        county_str = county + ' County, WA'
         county_df = pop_df[pop_df['destination_county'] == county_str]
 
         # make sure we don't select more people than are in the county
-        #if num_to_select > len(county_df):
+        # if num_to_select > len(county_df):
         #    num_to_select = len(county_df)
         # print(f'Warning: {num_to_select} people selected for {county} but only {len(county_df)} people in {county}')
 
         if fraction is None:
             if domicile == 'sfh':
-                county_df_sub = county_df[county_df['building_type'] == 'single_family']
+                county_df_sub = county_df[county_df['building_type']
+                                          == 'single_family']
             elif domicile == 'mfh':
-                county_df_sub = county_df[county_df['building_type'] != 'single_family']
+                county_df_sub = county_df[county_df['building_type']
+                                          != 'single_family']
             else:
                 print("Warning: domicile not recognized. Investigate the input df.")
             # unique people in that county
-            selected = county_df_sub.person_id.sample(n=num_to_select, replace=False, random_state=42)
+            selected = county_df_sub.person_id.sample(
+                n=num_to_select, replace=False, random_state=42)
         else:
             # unique people in that county
-            selected = county_df.person_id.sample(frac=fraction, replace=False, random_state=42)
-        
+            selected = county_df.person_id.sample(
+                frac=fraction, replace=False, random_state=42)
+
         # grab only those selected people from the original dataframe
         cnty_df = df[(df['person_id'].isin(selected))].copy()
 
         # add the county, segment, and engine to the dataframe
         cnty_df['engine'] = engine
-        cnty_df['segment'] = segment # .lower().replace(' ', '_').replace('/', '_')
+        # .lower().replace(' ', '_').replace('/', '_')
+        cnty_df['segment'] = segment
         cnty_df['efficiency'] = segment_efficiency(segment)
         cnty_df['year'] = year
-        
+
         # if it is a PHEV, we need to change the efficiency and milage
         cnty_df = phev_efficiency_milage(cnty_df, engine)
 
@@ -226,6 +239,7 @@ def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, year: str, fr
 
     return final_df
 
+
 def run_and_save_sampled_populations(df, nev_df, year, datadir='../../data/'):
     """Run the county sampler for a given year from the output of the stock rollover
     model and save the year-on-year outputs.
@@ -235,11 +249,13 @@ def run_and_save_sampled_populations(df, nev_df, year, datadir='../../data/'):
         nev_df (DataFrame): Output of the stock rollover model
         year (int): year to sample
         datadir (_type_): _description_
-        
+
     """
     simulation_id = f'{str(year)}'
     df_county_subset = sample_people_by_county(df, nev_df, year=year)
-    df_county_subset.to_parquet(os.path.join(datadir, f'county_samples/county_sample_{simulation_id}.parquet'))
+    df_county_subset.to_parquet(os.path.join(
+        datadir, f'county_samples/county_sample_{simulation_id}.parquet'))
+
 
 def map_charge_type(row):
     """maps the destination to the type of charging station. Also maps the home 
@@ -253,7 +269,8 @@ def map_charge_type(row):
         string: string to insert into the charge_type column
     """
 
-    office_work_buildings = ['education', 'office', 'industrial', 'healthcare',]
+    office_work_buildings = ['education',
+                             'office', 'industrial', 'healthcare',]
 
     if row['travel_purpose'] == 'HOME':
         if row['building_type'] == 'single_family':
@@ -271,5 +288,3 @@ def map_charge_type(row):
             return 'non_office_work'
     else:
         return 'public'
-
-    
