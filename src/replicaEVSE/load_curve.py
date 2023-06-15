@@ -590,6 +590,7 @@ def simulate_person_load(
     
     # Create charge_type column from travel_purpose column
     # trips_df['charge_type'] = None
+    # TODO: move this to datautils and precompute it
     trips_df['charge_type'] = trips_df.apply(map_charge_type, axis=1)
 
     trips_list = []
