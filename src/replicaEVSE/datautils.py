@@ -219,6 +219,8 @@ def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, year: str, fr
             selected = county_df.person_id.sample(
                 frac=fraction, replace=False, random_state=42)
 
+        print(num_to_select, len(selected), county_df_sub.shape, county_df_sub.drop_duplicates().shape)
+
         # grab only those selected people from the original dataframe
         cnty_df = df[(df['person_id'].isin(selected))].copy()
 
