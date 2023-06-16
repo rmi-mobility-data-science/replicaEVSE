@@ -8,5 +8,16 @@
 * other_len = 49.674863
 * pop_len = 14.889896
 * trips_into_wa_len = 51.727268
-* trips_to_wa_len = 51.727268 
+* private auto trips into wa = 27.12446
+* merged_len = 51.727268 
 * unique persons who travelled to wa = 8.538399
+
+
+### Note on vehicle type
+* for the northwest region, we only have information on whether
+the vehicle type is Heavy or Medium duty trucks. 
+
+### COMMERCIAL
+* there is only 1 person per trip in the commercial trips data
+* None of the commercial drivers are in the population data
+* I don't know how to get `stop_duration` out of trucks...
