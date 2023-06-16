@@ -160,7 +160,89 @@ def phev_efficiency_milage(df, engine):
     return df
 
 
-def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, year: str, fraction: float = 0.05) -> pd.DataFrame:
+def exclusionary_sampler(df: pd.DataFrame, population_df: pd.DataFrame, nev_df: pd.DataFrame, county: str, year: str) -> pd.DataFrame:
+    """_summary_
+
+    Args:
+        df (pd.DataFrame): _description_
+        population_df (pd.DataFrame): _description_
+        nev_df (pd.DataFrame): _description_
+        county (str): _description_
+        year (str): _description_
+
+    Returns:
+        pd.DataFrame: _description_
+    """
+
+    # subset the nev_df to only include the county
+    nvehicles_sub = nev_df[nev_df['County'] == county].copy()
+
+    # Create a list to keep track of selected individuals for each combination
+    already_sampled_people = []
+
+    # Create a list to store the cnty dataframes.
+    cnty_df_list = []
+
+    # Iterate over the county DataFrame and sample individuals from the population DataFrame
+    for _, row in nvehicles_sub.iterrows():
+        county = row['County']
+        vehicle_type = row['Vehicle_type']
+        domicile = row['domicile']
+        count = row[year]
+        # engine = row['Powertrain']
+        powertrain = row['Powertrain']
+
+        if count < 0:
+            count = 0
+
+        # slice the datafrane to only include people with the correct domicile
+        if domicile == 'sfh':
+            building_type = 'single_family'
+            domicile_cond = population_df['building_type'] == 'single_family'
+        else:
+            domicile_cond = population_df['building_type'] != 'single_family'
+
+        # slice the unique dataframe to only include the county
+        county_str = county + ' County, WA'
+        county_cond = population_df['home_cty'] == county_str
+
+        # filter the population based on county and domicile
+        filtered_population = population_df[(county_cond) & (domicile_cond)]
+        print(
+            f'Number of people in county and domicile = {domicile}: {filtered_population.shape[0]}')
+
+        # exclude already selected individuals for this combination
+        already_sampled_cond = filtered_population['person_id'].isin(
+            already_sampled_people)
+        filtered_people = filtered_population[~already_sampled_cond].copy()
+
+        print(
+            f'Filtered population not in the previous sample: {domicile} = {filtered_people.shape[0]}')
+        # sample 'count' number of individuals
+        sampled_population = filtered_people.sample(
+            n=count, replace=False, random_state=42)
+        sampled_individuals = sampled_population['person_id'].to_list()
+
+        # Update the selected individuals dictionary
+        already_sampled_people.extend(sampled_individuals)
+
+        print(f'Sampled {count} individuals from County: {county}, Vehicle Type: {vehicle_type}, Domicile: {domicile}, Powertrain: {powertrain} \n')
+
+        # grab only those selected people from the original dataframe
+        cnty_df = df[(df['person_id'].isin(sampled_individuals))].copy()
+        cnty_df['engine'] = powertrain
+        cnty_df['segment'] = vehicle_type
+        cnty_df['efficiency'] = segment_efficiency(vehicle_type)
+        cnty_df['year'] = str(2022)
+        ctny_df = phev_efficiency_milage(cnty_df, powertrain)
+        ctny_df['charge_type'] = ctny_df.apply(map_charge_type, axis=1)
+        cnty_df_list.append(cnty_df)
+
+    full_county_df = pd.concat(cnty_df_list)
+    return full_county_df
+
+
+def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, year: str) -> pd.DataFrame:
     """ Selects a random sample of people (representing EVs) from each county.
     These numbers come from the stock rollover model.
 
@@ -178,60 +260,10 @@ def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, year: str, fr
 
     year = str(year)
     reduced_df = []
-    print(f"Selecting people from each county in year={year}...14 mins per year")
-    for row_idx, cnty in ev_df.iterrows():
-
-        county = cnty['County']
-        num_to_select = cnty[year]
-        domicile = cnty['domicile']
-        segment = cnty['Vehicle_type']
-        engine = cnty['Powertrain']
-        # print(num_to_select, county, domicile, segment, engine)
-
-        # there are negative numbers of vehicles?
-        if num_to_select <= 0:
-            num_to_select = 0
-
-        # slice the unique dataframe to only include the county
-        county_str = county + ' County, WA'
-        county_df = pop_df[pop_df['destination_county'] == county_str]
-
-        # make sure we don't select more people than are in the county
-        # if num_to_select > len(county_df):
-        #    num_to_select = len(county_df)
-        # print(f'Warning: {num_to_select} people selected for {county} but only {len(county_df)} people in {county}')
-
-        if fraction is None:
-            if domicile == 'sfh':
-                county_df_sub = county_df[county_df['building_type']
-                                          == 'single_family']
-            elif domicile == 'mfh':
-                county_df_sub = county_df[county_df['building_type']
-                                          != 'single_family']
-            else:
-                print("Warning: domicile not recognized. Investigate the input df.")
-            # unique people in that county
-            selected = county_df_sub.person_id.sample(
-                n=num_to_select, replace=False, random_state=42)
-        else:
-            # unique people in that county
-            selected = county_df.person_id.sample(
-                frac=fraction, replace=False, random_state=42)
-
-        print(num_to_select, len(selected), county_df_sub.shape, county_df_sub.drop_duplicates().shape)
-
-        # grab only those selected people from the original dataframe
-        cnty_df = df[(df['person_id'].isin(selected))].copy()
-
-        # add the county, segment, and engine to the dataframe
-        cnty_df['engine'] = engine
-        # .lower().replace(' ', '_').replace('/', '_')
-        cnty_df['segment'] = segment
-        cnty_df['efficiency'] = segment_efficiency(segment)
-        cnty_df['year'] = year
-
-        # if it is a PHEV, we need to change the efficiency and milage
-        cnty_df = phev_efficiency_milage(cnty_df, engine)
+    county_list = ev_df['Ccounty'].unique()
+    for county in county_list:
+        # run the sampler for each county
+        cnty_df = exclusionary_sampler(df, pop_df, ev_df, county, year)
 
         # append it to the reduced dataframe
         reduced_df.append(cnty_df)
