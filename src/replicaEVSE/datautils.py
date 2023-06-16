@@ -178,8 +178,7 @@ def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, year: str, fr
 
     year = str(year)
     reduced_df = []
-    print(
-        f"Selecting people from each county in year={year}...14 mins per year")
+    print(f"Selecting people from each county in year={year}...14 mins per year")
     for row_idx, cnty in ev_df.iterrows():
 
         county = cnty['County']
