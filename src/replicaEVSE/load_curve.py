@@ -610,7 +610,12 @@ def simulate_person_load(
                 # For each day (thursday and saturday), get charger availability for person j
                 # and determine which stopping events will result in charges
 
-                trips_temp = calculate_stop_duration(trips_temp)
+                # Calculate the stop duration for each trip if it hasnt been precomputed
+                try:
+                    trips_temp['stop_duration']
+                except:
+                    trips_temp = calculate_stop_duration(trips_temp)
+                
                 trips_temp = trips_temp.loc[trips_temp['stop_duration'] > pd.to_timedelta('10 minutes')]
 
                 charger_availability = determine_charger_availability(

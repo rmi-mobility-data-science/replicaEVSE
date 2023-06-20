@@ -121,6 +121,38 @@ def create_chunked_lists(chunk_size, person_list):
     return lists
 
 
+def calculate_stop_duration(trips_df: pd.DataFrame) -> pd.DataFrame:
+    """ TODO: implement this before making the big combined trips table. 
+    This needs to be run on a single weekday so do it before stacking. Might still need
+    to loop through each person_id. Slow but only needs to run once. Or try a groupby. 
+    
+    Note: this is currently not employed, choosing to stick with 
+    the old looping method for now. 
+
+    Args:
+        trips_df (pd.DataFrame): replica trip data table
+
+    Returns:
+        pd.DataFrame: updated table with new stop_duration column
+    """
+    
+    trips = trips_df.sort_values(by='start_time')
+    # Initialize stop_duration column
+    trips['stop_duration'] = 0
+    # For each row in the trips table, calculate the stop duration
+    for i in range(0, len(trips)-1):
+        trips.iloc[i, trips.columns.get_loc('stop_duration')] =\
+            trips.iloc[i+1, trips.columns.get_loc('start_time')] -\
+            trips.iloc[i, trips.columns.get_loc('end_time')]
+    # For the last stop of the day, calculate the stop duration assuming the next start
+    # time is the same as the start time of the first trip of the day
+    trips.iloc[len(trips)-1, trips.columns.get_loc('stop_duration')] =\
+        trips.iloc[0, trips.columns.get_loc('start_time')] -\
+        (trips.iloc[len(trips)-1, trips.columns.get_loc('end_time')
+                    ]-pd.to_timedelta('1 day'))
+    return trips
+
+
 def segment_efficiency(segment):
     """This simply returns the expected efficiency (kwh/mi) for a given segment.
     It is quite simple now but could be expanded to include more complex
