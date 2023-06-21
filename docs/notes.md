@@ -30,6 +30,25 @@
 
 * Fill out the assumptions with code
 
+---
+
+
+# Notes from dave
+1. need to check that a vehicle doesn't meet its daily driving needs
+    * in future: assume this demand would be met with Public DCFC at the last Public spot
+
+
+### Changes to model based on dwell time
+    if public:
+        if dwell time < 60 mins, 
+            90% DCFC bimonial
+        else:
+            10% L2
+
+    
+
+---
+
 ## TNCs
 
 * Look up summary stats and distributiions for TNCs
@@ -43,14 +62,6 @@
 * loop the years and outputs so we can get this done as fast as possible
 * ~~get matt to figure out charging numbers~~
 
----
-
-### Changes to model based on dwell time
-    if public:
-        if dwell time < 60(?) mins, 
-            80% DCFC bimonial
-        else:
-            80% L2
 
 ---
 
