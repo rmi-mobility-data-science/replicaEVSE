@@ -1,36 +1,44 @@
 # TODO:
-* Precalc dwell time into main dataset.
 
-* Look up summary stats and distributiions for TNCs
+## LDV
+* ~~Precalc dwell time into main dataset.~~
 
-* ask emily for plot comparison ideas
+* check that the sampling logic is working
 
-* implement new logic
-    - See below
+* keep track of unused charge through out the day
+
+* run sim
+    - now with PHEV using logic in the sharepoint file.
+    - these are now in the output from the sampling code
+    - check with Ben if the logic changes
+
+* check on the charging and making sure we arent missing charging events. Try only adding charging times when they start and not making 24h windows. 
 
 * gut check: vmt vs efficiency to get total power needed. 
     - run on state wide values
     - could be in the merge which we don't use anymore?
 
-* run PHEV using logic in the sharepoint file.
-    - these are now in the output from the sampling code 
-
-
-* ~~find commit where there was a large plot~~
-    - see this: https://stackoverflow.com/questions/10622179/how-to-find-identify-large-commits-in-git-history
-
 * Update this: Summary statistic X% of charging takes place at home, Y% charges public Z% charges at work. Use charge_id and wrap all work together. 
+
+* ask emily for plot comparison ideas
+
+* make a couple load curves of blockgroups that look different.
+
+* implement new logic:
+    - precalc stop duration
+    - See below
 
 * Fill out the assumptions with code
 
-* ~~Add CommercialL: rewrite load curve plotting code to take in load curves and then try `plt.stackplot(hour, [...])`~~
+## TNCs
 
-* make a couple load curves of blockgroups that look different. 
+* Look up summary stats and distributiions for TNCs
+    - stop duration
+    - distance per trip 
+    - find shortest dwell time
 
 * run TNC simuluation -> load_curves
     - only change is public/home l2 logic
-
-* check on the charging and making sure we arent missing charging events. Try only adding chargin times when they start and not making 24 windows. 
 
 * loop the years and outputs so we can get this done as fast as possible
 * ~~get matt to figure out charging numbers~~
