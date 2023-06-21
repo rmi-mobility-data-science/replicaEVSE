@@ -14,7 +14,7 @@ mode = 'PRIVATE_AUTO'
 datadir = '../../data/'
 
 
-start_time = process_time()
+
 # read in data and filter for mode
 merged_df = pd.read_parquet(os.path.join(datadir, 'wa_pop_and_trips_sorted_county.parquet'))
 df = merged_df.loc[merged_df['mode'] == mode]
@@ -25,8 +25,9 @@ df = merged_df.loc[merged_df['mode'] == mode]
 # for each person and weekday. >2 hours
 # groupby_df_stop_dur = df.groupby(['person_id', 'weekday']).apply(simdu.calculate_stop_duration).reset_index(drop=True)
 
+start_time = process_time()
 groups = df.groupby(['person_id', 'weekday'])
-outlist = joblib.Parallel(verbose=10, n_jobs=4)(joblib.delayed(simdu.calculate_stop_duration)(group) for name, group in groups)
+outlist = joblib.Parallel(verbose=10, n_jobs=60)(joblib.delayed(simdu.calculate_stop_duration)(group) for name, group in groups)
 stop_time = process_time()
 print("time to calculate dwell time:", (stop_time - start_time)/60, "minutes")
 
