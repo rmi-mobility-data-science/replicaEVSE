@@ -2,6 +2,7 @@
 
 import pandas as pd
 import numpy as np
+import replicaEVSE.datautils as simdu
 # import replicaEVSE.sql_wrapper_functions as sql
 # import dask.dataframe as dd
 import dask
@@ -614,7 +615,7 @@ def simulate_person_load(
                 try:
                     trips_temp['stop_duration']
                 except:
-                    trips_temp = calculate_stop_duration(trips_temp)
+                    trips_temp = simdu.calculate_stop_duration(trips_temp)
                 
                 trips_temp = trips_temp.loc[trips_temp['stop_duration'] > pd.to_timedelta('10 minutes')]
 
