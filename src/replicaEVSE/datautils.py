@@ -193,11 +193,12 @@ def phev_efficiency_milage(df, engine):
 
 
 def exclusionary_sampler(df: pd.DataFrame, population_df: pd.DataFrame, nev_df: pd.DataFrame, county: str, year: str) -> pd.DataFrame:
-    """_summary_
+    """Takes in a dataframe of trips and a dataframe of population and samples
+    expecting this dataset has residents from one county only. 
 
     Args:
         df (pd.DataFrame): _description_
-        population_df (pd.DataFrame): _description_
+        population_df (pd.DataFrame): population df for the people in given county
         nev_df (pd.DataFrame): _description_
         county (str): _description_
         year (str): _description_
@@ -229,17 +230,12 @@ def exclusionary_sampler(df: pd.DataFrame, population_df: pd.DataFrame, nev_df: 
 
         # slice the datafrane to only include people with the correct domicile
         if domicile == 'sfh':
-            building_type = 'single_family'
             domicile_cond = population_df['building_type'] == 'single_family'
         else:
             domicile_cond = population_df['building_type'] != 'single_family'
 
-        # slice the unique dataframe to only include the county
-        county_str = county + ' County, WA'
-        county_cond = population_df['home_cty'] == county_str
-
-        # filter the population based on county and domicile
-        filtered_population = population_df[(county_cond) & (domicile_cond)]
+        # filter the county population based on domicile
+        filtered_population = population_df[(domicile_cond)]
         print(
             f'Number of people in county and domicile = {domicile}: {filtered_population.shape[0]}')
 
@@ -255,12 +251,13 @@ def exclusionary_sampler(df: pd.DataFrame, population_df: pd.DataFrame, nev_df: 
             n=count, replace=False, random_state=42)
         sampled_individuals = sampled_population['person_id'].to_list()
 
-        # Update the selected individuals dictionary
+        # Update the selected individuals list
         already_sampled_people.extend(sampled_individuals)
 
         print(f'Sampled {count} individuals from County: {county}, Vehicle Type: {vehicle_type}, Domicile: {domicile}, Powertrain: {powertrain} \n')
 
-        # grab only those selected people from the original dataframe
+        # grab only those selected people with this combination
+        # of county, domicile, and vehicle type and powertrain.
         cnty_df = df[(df['person_id'].isin(sampled_individuals))].copy()
         cnty_df['engine'] = powertrain
         cnty_df['segment'] = vehicle_type
@@ -275,7 +272,12 @@ def exclusionary_sampler(df: pd.DataFrame, population_df: pd.DataFrame, nev_df: 
 
 
 def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, year: str) -> pd.DataFrame:
-    """ Selects a random sample of people (representing EVs) from each county.
+    """ NOTE: Why are we doing this loop twice????
+    
+    We already loop through the 
+    counties in the ev_df. 
+    
+    Selects a random sample of people (representing EVs) from each county.
     These numbers come from the stock rollover model.
 
     Args:
@@ -287,15 +289,24 @@ def sample_people_by_county(df: pd.DataFrame, ev_df: pd.DataFrame, year: str) ->
         _type_: _description_
     """
     # get the unique people in the dataframe
-    pop_df = df.drop_duplicates(subset=['person_id'])[
-        ['person_id', 'destination_county', 'building_type']]
+    total_population_df = df.drop_duplicates(subset=['person_id'])[
+        ['person_id', 'home_cty', 'building_type']]
 
     year = str(year)
     reduced_df = []
-    county_list = ev_df['Ccounty'].unique()
+    county_list = ev_df['County'].unique()
     for county in county_list:
+        
+        # slice the unique dataframe to only include people in that county
+        county_str = county + ' County, WA'
+        county_cond = total_population_df['home_cty'] == county_str 
+        county_pop_df = total_population_df[county_cond].copy()       
+
+        #pop_df = df.drop_duplicates(subset=['person_id'])[
+        #['person_id', 'home_cty', 'building_type']]
+
         # run the sampler for each county
-        cnty_df = exclusionary_sampler(df, pop_df, ev_df, county, year)
+        cnty_df = exclusionary_sampler(df, county_pop_df, ev_df, county, year)
 
         # append it to the reduced dataframe
         reduced_df.append(cnty_df)
