@@ -25,17 +25,17 @@ df = merged_df.loc[merged_df['mode'] == mode]
 # for each person and weekday. >2 hours
 # groupby_df_stop_dur = df.groupby(['person_id', 'weekday']).apply(simdu.calculate_stop_duration).reset_index(drop=True)
 
-start_time = process_time()
 groups = df.groupby(['person_id', 'weekday'])
 outlist = joblib.Parallel(verbose=10, n_jobs=60)(joblib.delayed(simdu.calculate_stop_duration)(group) for name, group in groups)
 stop_time = process_time()
-print("time to calculate dwell time:", (stop_time - start_time)/60, "minutes")
 
-start_time = process_time()
+
+print("="*20)
+print('starting to concat')
 groupby_df_stop_dur = pd.concat(outlist).reset_index(drop=True)
-
+print("="*20)
+print("="*20)
+print('starting to save')
 # save the file
 groupby_df_stop_dur.to_parquet(datadir+'wa_ldv_trips_with_county_and_dwell_time.parquet')
 stop_time = process_time()
-
-print("time to save:", (stop_time - start_time)/60, "minutes")
