@@ -3,7 +3,9 @@
 ## LDV
 * ~~Precalc dwell time into main dataset.~~
 
-* check that the sampling logic is working
+* ~~check that the sampling logic is working~~
+* fix sampling logic: each year the same length still. 
+must be in the row[year] or something. 
 
 * keep track of unused charge through out the day
 
