@@ -29,7 +29,7 @@ nev_df.drop(columns=['Unnamed: 0'], inplace=True)
 
 print('========== Runnign parallel sampling by year ==========')
 # run the sampler for each year
-year_list = np.arange(2034, 2036, 1)
+year_list = np.arange(2022, 2036, 1)
 if True:
 
     joblib.Parallel(verbose=10, n_jobs=4)(joblib.delayed(simdu.run_and_save_sampled_populations)(
