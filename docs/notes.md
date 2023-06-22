@@ -70,6 +70,7 @@ must be in the row[year] or something.
 # Notes as I explore the data
 
 ### Commercial
+* MHDV thursday vmt is ~16m miles
 * Matt M. has taken over the Commercial and implemented his own functionality
 * commercial travel in the trips tables have a person_id, however these person_ids are not in the population table. This is fine for PRIVATE_AUTO but will require modification of the code for COMMERCIAL trips. 
 * for the northwest region, we only have information on whether
