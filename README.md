@@ -11,4 +11,9 @@ So the same person might not have the same car each year but they do have the sa
 
 1. Persons who live in Mobile housing don't have EVs. This might change soon.
 
-1. For the WA-TES project, we consider everyone whos desitination ends in WA. We also use destination county as a proxy for their home county.
+1. For the WA-TES project, we consider everyone whos desitination ends in WA. We also use destination county as a proxy for their home county for non LDV segments. LDVs have a home county since they are in the population table. 
+
+### WA stock rollover sampling
+
+1. If there are more people in a county, vehicle type, domicile, powertrian, combination: sample the remainder from the full county population. This should randomize who has two 
+vehicles.
