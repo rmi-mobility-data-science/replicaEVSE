@@ -122,12 +122,10 @@ def create_chunked_lists(chunk_size, person_list):
 
 
 def calculate_stop_duration(trips_df: pd.DataFrame) -> pd.DataFrame:
-    """ TODO: implement this before making the big combined trips table. 
+    """Calculates the stop duration for each trip in the trips dataframe.
     This needs to be run on a single weekday so do it before stacking. Might still need
     to loop through each person_id. Slow but only needs to run once. Or try a groupby. 
     
-    Note: this is currently not employed, choosing to stick with 
-    the old looping method for now. 
 
     Args:
         trips_df (pd.DataFrame): replica trip data table
