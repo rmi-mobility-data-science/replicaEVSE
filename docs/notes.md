@@ -32,6 +32,8 @@ must be in the row[year] or something.
 
 * Fill out the assumptions with code
 
+* there is a bug in the replica data where a trip will end after the next one is supposed to have started. this creates negative stop_durations. 
+
 ---
 
 
