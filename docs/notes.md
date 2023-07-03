@@ -2,6 +2,7 @@
 
 ## LDV
 * ~~Precalc dwell time into main dataset.~~
+    - there are positive and negative days...negatives need to be removed, positive days can just subtract a day from them. 
 
 * ~~check that the sampling logic is working~~
 * fix sampling logic: each year the same length still. 
